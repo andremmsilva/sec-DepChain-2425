@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import classes.State;
+
 public class DepChainMain {
     private static final int PORT = 8080; // FIX ME
     private static final String[] MEMBERS = {"192.168.1.1", "192.168.1.2", "192.168.1.3"}; // FIX ME: Replace with actual addresses
@@ -18,10 +20,7 @@ public class DepChainMain {
     private static int KEY_SIZE = 256;
     private static int f = 1;
     private int leader_id;
-    
-    public class le(String value, Integer timestamp){
-
-    }
+    private State state;
        
     public static void main(String[] args) throws Exception {
 
@@ -32,7 +31,7 @@ public class DepChainMain {
             links[i] = new AuthenticatedPerfectLink(PORTS[i], kp.getPrivate(), kp.getPublic());
         }
         
-        //PHASE 1 READ
+        //PHASE 1 READ NEEDS  A LOT OF FIXING
 
         // Create an instance of SignedConditionalCollect for each process.
         SignedConditionalCollect[] collectors = new SignedConditionalCollect[N_PROCESSES];
