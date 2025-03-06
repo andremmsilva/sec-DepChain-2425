@@ -1,6 +1,10 @@
 package depchain.crypto;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 public class CryptoUtils {
@@ -29,6 +33,27 @@ public class CryptoUtils {
             System.out.println("Error verifying signature: " + e.getMessage());
             return false;
         }
+    }
+
+    public static PrivateKey loadPrivateKey(String filename) throws Exception {
+        String keyPem = Files.readString(Paths.get(filename))
+                .replaceAll("-----\\w+ PRIVATE KEY-----", "")
+                .replaceAll("\\s+", "");
+        byte[] keyBytes = Base64.getDecoder().decode(keyPem);
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        return kf.generatePrivate(spec);
+    }
+
+    // Load a public key from PEM file
+    public static PublicKey loadPublicKey(String filename) throws Exception {
+        String keyPem = Files.readString(Paths.get(filename))
+                .replaceAll("-----\\w+ PUBLIC KEY-----", "")
+                .replaceAll("\\s+", "");
+        byte[] keyBytes = Base64.getDecoder().decode(keyPem);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        return kf.generatePublic(spec);
     }
 
     // Utility: encode bytes to Base64 string.

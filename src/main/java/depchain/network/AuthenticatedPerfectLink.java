@@ -26,7 +26,7 @@ public class AuthenticatedPerfectLink {
         this.startListening();
     }
 
-    public void sendMessage(InetAddress dest, int destPort, String message) throws Exception {
+    public void sendMessage(InetAddress dest, int destPort, String message) {
         byte[] signature = CryptoUtils.signMessage(message, privateKey);
         Message m = new Message(dest, destPort, message, signature);
         stubbornLink.sendMessage(m);
