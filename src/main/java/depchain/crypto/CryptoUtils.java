@@ -3,6 +3,9 @@ package depchain.crypto;
 import java.security.*;
 import java.util.Base64;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+
 public class CryptoUtils {
 
     // Sign a message using the provided private key.
@@ -39,5 +42,13 @@ public class CryptoUtils {
     // Utility: decode Base64 string to bytes.
     public static byte[] decodeFromBase64(String data) {
         return Base64.getDecoder().decode(data);
+    }
+
+
+
+    public static KeyPair generateRSAKeyPair(int keySize) throws Exception {
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(keySize); // e.g., 2048 or 3072 bits
+        return keyGen.generateKeyPair();
     }
 }
