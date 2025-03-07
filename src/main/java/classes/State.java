@@ -31,6 +31,10 @@ public class State {
     public void addToWriteSet(Tuple newWriteTuple){
         this.writeset.add(newWriteTuple);
     }
+    @Override
+    public String toString(){
+        return last_round.toString() + writeset.toString();
+    } 
 
 
 

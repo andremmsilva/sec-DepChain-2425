@@ -1,7 +1,11 @@
 package depchain;
 
+import java.io.ObjectInputFilter;
+import java.lang.classfile.instruction.ThrowInstruction;
+
 import depchain.network.AuthenticatedPerfectLink;
 import depchain.network.Message;
+import depchain.network.SignedConditionalCollect;
 import depchain.crypto.CryptoUtils;
 
 import java.net.InetAddress;
@@ -9,6 +13,8 @@ import java.security.KeyPair;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import depchain.config.*;
 
 import classes.State;
 
@@ -19,18 +25,58 @@ public class DepChainMain {
     private static int N_PROCESSES = 4;
     private static int KEY_SIZE = 256;
     private static int f = 1;
-    private int leader_id;
-    private State state;
+
+
+    public void read(DepChainConfig config) {
+        
+        Message message = new Message(null, config.BASE_PORT + config.LEADER, null, null);
+        link.sendMessage(dest, leader_id, message);
+    }
+
+    public void waitForMessage(DepChainConfig config) {
+        Message message = null;
+        try {
+            while (message == null){
+                message = link.getNextMessage();
+            }
+            switch (message.getMessage().substring(0, message.indexOf('-'))) {
+                case "READ":
+                    read(config);
+                    break;
+                case "STATE":
+                    state(config, message);
+                    break;
+                case "COLLECTED":
+                    collected(config, message);
+                    break;
+                case "WRITE":
+                    write(config, message);
+                    break;
+                case "ACCEPT":
+                    accept(config, message);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown command: " + message);
+            }
+            
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
        
     public static void main(String[] args) throws Exception {
+        int leader_id = 0;
+        int my_id = Integer.parseInt(args[0]);
+        State state;
+        int currentEpoch = 0;
+        AuthenticatedPerfectLink link; 
+        DepChainConfig config = new DepChainConfig(my_id);
+        
+        link = new AuthenticatedPerfectLink(config.BASE_PORT + my_id, null, null);
 
-        
-        AuthenticatedPerfectLink[] links = new AuthenticatedPerfectLink[N_PROCESSES];
-        for (int i = 0; i < N_PROCESSES; i++) {
-            KeyPair kp = CryptoUtils.generateRSAKeyPair(KEY_SIZE);
-            links[i] = new AuthenticatedPerfectLink(PORTS[i], kp.getPrivate(), kp.getPublic());
-        }
-        
+
+      
         //PHASE 1 READ NEEDS  A LOT OF FIXING
 
         // Create an instance of SignedConditionalCollect for each process.

@@ -1,10 +1,10 @@
 package depchain.config;
 
-import depchain.crypto.CryptoUtils;
-
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
+
+import depchain.crypto.CryptoUtils;
 
 public class DepChainConfig {
     public static final Integer PROCESSES = 4;
@@ -12,6 +12,7 @@ public class DepChainConfig {
     public static final Integer LEADER = 0;
     public static final String ADDRESS = "127.0.0.1";
     public static final Integer BASE_PORT = 8080;
+    
 
     public static final ArrayList<PublicKey> PUBLIC_KEYS = new ArrayList<>();
     public static PrivateKey PRIVATE_KEY;
