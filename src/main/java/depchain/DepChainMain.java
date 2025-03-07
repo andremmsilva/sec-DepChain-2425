@@ -9,6 +9,7 @@ import depchain.network.SignedConditionalCollect;
 import depchain.crypto.CryptoUtils;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,41 +20,52 @@ import depchain.config.*;
 import classes.State;
 
 public class DepChainMain {
-    private static final int PORT = 8080; // FIX ME
-    private static final String[] MEMBERS = {"192.168.1.1", "192.168.1.2", "192.168.1.3"}; // FIX ME: Replace with actual addresses
-    private static final int[] PORTS = {8080, 8081, 8082};
-    private static int N_PROCESSES = 4;
-    private static int KEY_SIZE = 256;
-    private static int f = 1;
 
-
-    public void read(DepChainConfig config) {
-        
-        Message message = new Message(null, config.BASE_PORT + config.LEADER, null, null);
-        link.sendMessage(dest, leader_id, message);
+    //As a non Leader I received a Read message
+    public void read(DepChainConfig config, State state, AuthenticatedPerfectLink link) throws UnknownHostException {
+        link.sendMessage(InetAddress.getByName(DepChainConfig.ADDRESS),DepChainConfig.BASE_PORT + DepChainConfig.LEADER , state.toString());
     }
 
-    public void waitForMessage(DepChainConfig config) {
+    //As a Leader I have received someone's state
+    public void state(DepChainConfig config, Message message, AuthenticatedPerfectLink link) throws UnknownHostException {
+        //This has to apart of the conditional collect, we either change how it is structured or the conditional collect is done here
+    }
+
+    // As a non Leader I am receiving the Collected message
+    public void collected(DepChainConfig config, Message message, AuthenticatedPerfectLink link){
+        //Ver das duas condições senão escolher o valor do leader.
+    }
+
+    //As a Leader/Non Leader I have received a write message
+    public void write(DepChainConfig config, Message message, AuthenticatedPerfectLink link){
+        //Preciso de ver do quorum
+    }
+
+    public void accept(DepChainConfig config, Message message, AuthenticatedPerfectLink link){
+        //Ver se tem quorum
+    }
+
+    public void waitForMessage(DepChainConfig config, State state, AuthenticatedPerfectLink link) throws UnknownHostException {
         Message message = null;
         try {
             while (message == null){
                 message = link.getNextMessage();
             }
-            switch (message.getMessage().substring(0, message.indexOf('-'))) {
+            switch (message.getMessage().substring(0, message.getMessage().indexOf('-'))) {
                 case "READ":
-                    read(config);
+                    read(config, state, link);
                     break;
                 case "STATE":
-                    state(config, message);
+                    state(config, message, link);
                     break;
                 case "COLLECTED":
-                    collected(config, message);
+                    collected(config, message, link);
                     break;
                 case "WRITE":
-                    write(config, message);
+                    write(config, message, link);
                     break;
                 case "ACCEPT":
-                    accept(config, message);
+                    accept(config, message, link);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown command: " + message);
@@ -68,30 +80,18 @@ public class DepChainMain {
     public static void main(String[] args) throws Exception {
         int leader_id = 0;
         int my_id = Integer.parseInt(args[0]);
-        State state;
         int currentEpoch = 0;
-        AuthenticatedPerfectLink link; 
+        State state = new State();
         DepChainConfig config = new DepChainConfig(my_id);
-        
-        link = new AuthenticatedPerfectLink(config.BASE_PORT + my_id, null, null);
+        AuthenticatedPerfectLink link = new AuthenticatedPerfectLink(DepChainConfig.BASE_PORT + my_id,
+         config.getSelfPrivateKey(), config.getSelfPublicKey());
 
 
       
-        //PHASE 1 READ NEEDS  A LOT OF FIXING
+        //PHASE 1 READ 
 
-        // Create an instance of SignedConditionalCollect for each process.
-        SignedConditionalCollect[] collectors = new SignedConditionalCollect[N_PROCESSES];
-        // Let process "0" be the leader.
-        int leaderId = 0;
-        for (int i = 0; i < N_PROCESSES; i++) {
-            collectors[i] = new SignedConditionalCollect(N_PROCESSES, f, leaderId, links[i]);
-        }
-        
-        // Wait for one of the processes (say, process 1) to collect the final vector.
-        Object[] collectedVector = collectors[1].awaitCollected();
 
     
         //PHASE 2 WRITE
-
-    }
+    }
 }

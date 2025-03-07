@@ -34,6 +34,10 @@ public class DepChainConfig {
         return PUBLIC_KEYS.get(SELF_ID);
     }
 
+    public PrivateKey getSelfPrivateKey(){
+        return PRIVATE_KEY;
+    }
+
     private String makeKeyFileName(String fileName) {
         return System.getProperty("user.dir") + fileName;
     }
