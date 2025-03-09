@@ -12,6 +12,11 @@ public class State {
         this.writeset = new ArrayList<>();
     }
 
+    public State(Tuple tuple, List<Tuple> writeset){
+        this.last_round = tuple;
+        this.writeset = writeset;
+    }
+
     public Tuple getLastRound(){
         return this.last_round;
     }
@@ -35,8 +40,6 @@ public class State {
     public String toString(){
         return last_round.toString() + writeset.toString();
     } 
-
-
 
 }
 

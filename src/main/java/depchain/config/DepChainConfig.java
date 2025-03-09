@@ -30,6 +30,10 @@ public class DepChainConfig {
         }
     }
 
+    public PublicKey getPublicKey(int id){
+        return PUBLIC_KEYS.get(id);
+    }
+
     public PublicKey getSelfPublicKey() {
         return PUBLIC_KEYS.get(SELF_ID);
     }

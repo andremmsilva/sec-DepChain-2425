@@ -1,13 +1,18 @@
 package depchain.network;
 
+import depchain.config.DepChainConfig;
 import depchain.crypto.CryptoUtils;
 
 import java.net.InetAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.*;
+
+import classes.State;
 
 public class AuthenticatedPerfectLink {
     private final StubbornLink stubbornLink;
@@ -16,19 +21,22 @@ public class AuthenticatedPerfectLink {
     private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
     private final HashSet<Message> receivedMessages = new HashSet<>();
     private final ExecutorService executor;
+    private final DepChainConfig config;
     private volatile boolean running = true;
 
-    public AuthenticatedPerfectLink(int port, PrivateKey privateKey, PublicKey publicKey) throws Exception {
+    //Maybe o config não devia estar aqui
+    public AuthenticatedPerfectLink(int port, PrivateKey privateKey, PublicKey publicKey, DepChainConfig config) throws Exception {
         this.stubbornLink = new StubbornLink(port);
         this.privateKey = privateKey;
         this.publicKey = publicKey;
         this.executor = Executors.newSingleThreadExecutor();
+        this.config = config;
         this.startListening();
     }
 
     public void sendMessage(InetAddress dest, int destPort, String message) {
         byte[] signature = CryptoUtils.signMessage(message, privateKey);
-        Message m = new Message(dest, destPort, message, signature);
+        Message m = new Message(dest, destPort, message, signature, config.SELF_ID );
         stubbornLink.sendMessage(m);
     }
 
@@ -50,12 +58,14 @@ public class AuthenticatedPerfectLink {
     public void handleMessage(Message m) {
         String message = m.getMessage();
         byte[] signature = m.getSignature();
+        int id = m.getSenderId();
 
         if (hasReceivedMessage(m)) {
             return; // Prevent duplicates
         }
 
-        if (CryptoUtils.verifySignature(message, signature, publicKey)) {
+        //Isto não me faz sentido, devia ser com a public de quem enviou a mensagem
+        if (CryptoUtils.verifySignature(message, signature, config.getPublicKey(id))) {
             receivedMessages.add(m);
             messageQueue.add(m);
             System.out.println("Authenticated message received: " + message + " " + Base64.getEncoder().encodeToString(signature));

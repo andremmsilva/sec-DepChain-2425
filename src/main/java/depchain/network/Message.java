@@ -15,11 +15,11 @@ public class Message {
         this.payload = payload;
     }
 
-    public Message(InetAddress destination, int destinationPort, String message, byte[] signature) {
+    public Message(InetAddress destination, int destinationPort, String message, byte[] signature, int senderId) {
         this.destination = destination;
         this.destinationPort = destinationPort;
 
-        String signedMessage = message + "|" + Base64.getEncoder().encodeToString(signature);
+        String signedMessage = senderId + "|" + message + "|" + Base64.getEncoder().encodeToString(signature);
         this.payload = signedMessage.getBytes();
     }
 
@@ -27,15 +27,15 @@ public class Message {
         String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
         String[] parts = payloadStr.split("\\|");
 
-        if (parts.length != 2) {
+        if (parts.length != 3) {
             System.err.println("Malformed message: " + payloadStr);
             return new byte[0]; // Return empty array to avoid decoding errors
         }
 
         try {
-            return Base64.getDecoder().decode(parts[1]);
+            return Base64.getDecoder().decode(parts[2]);
         } catch (IllegalArgumentException e) {
-            System.err.println("Failed to decode signature: " + parts[1]);
+            System.err.println("Failed to decode signature: " + parts[2]);
             return new byte[0]; // Avoid crashing due to malformed Base64
         }
     }
@@ -44,12 +44,24 @@ public class Message {
         String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
         String[] parts = payloadStr.split("\\|");
 
-        if (parts.length != 2) {
+        if (parts.length != 3) {
             System.err.println("Malformed message: " + payloadStr);
             return ""; // Prevent incorrect access
         }
 
-        return parts[0];
+        return parts[1];
+    }
+
+    public int getSenderId() {
+        String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
+        String[] parts = payloadStr.split("\\|");
+
+        if (parts.length != 3) {
+            System.err.println("Malformed message: " + payloadStr);
+            return -1; // Prevent incorrect access
+        }
+
+        return Integer.parseInt(parts[0]);
     }
 
     public InetAddress getDestination() {
