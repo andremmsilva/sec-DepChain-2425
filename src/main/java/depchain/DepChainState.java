@@ -22,7 +22,7 @@ public class DepChainState {
         this.state = new State();
     }
 
-    public void addState(int id, State state){
+    public void addStateToCollected(int id, State state){
         collected.add(id, state);
     }
 

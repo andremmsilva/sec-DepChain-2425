@@ -29,22 +29,24 @@ public class DepChainMain {
     //As a Leader I have received someone's state
     public void state(DepChainState serverState, Message message) throws UnknownHostException {
         State state = convertMessageToState(message);
-        serverState.addState(message.getSenderId(), state);
+        serverState.addStateToCollected(message.getSenderId(), state);
     }
 
 
     // As a non Leader I am receiving the Collected message
-    public void collected(DepChainState state, Message message){
-        //Ver das duas condições senão escolher o valor do leader.
+    public void collected(DepChainState serverState, Message message){
+        //Ver das duas condições senão escolher o valor do leader. e mandar write
     }
 
     //As a Leader/Non Leader I have received a write message
-    public void write(DepChainState state, Message message){
-        //Preciso de ver do quorum
+    public void write(DepChainState serverState, Message message){
+        Tuple tuple = convertMessageToTuple(message);
+        serverState.addToWriteList(tuple);
+
     }
 
-    public void accept(DepChainState state, Message message){
-        //Ver se tem quorum
+    public void accept(DepChainState serverState, Message message){
+        serverState.addToAcceptList(message.getSenderId());
     }
 
     public void waitForMessage(DepChainState serverState, AuthenticatedPerfectLink link) throws UnknownHostException {
@@ -122,6 +124,31 @@ public class DepChainMain {
         }
 
         return new State(lastRound, writeSet);
+    }
+
+    public Tuple convertMessageToTuple(Message message) {
+        String messageContent = message.getMessage(); // Extract message content (excluding signature)
+    
+        if (messageContent.isEmpty()) {
+            System.err.println("Error: Received an empty message.");
+            return null;
+        }
+    
+        String[] parts = messageContent.split(","); // Expecting "timestamp,value"
+    
+        if (parts.length != 2) {
+            System.err.println("Malformed tuple message: " + messageContent);
+            return null;
+        }
+    
+        try {
+            int timestamp = Integer.parseInt(parts[0].trim());
+            String value = parts[1].trim();
+            return new Tuple(timestamp, value);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid timestamp format: " + parts[0]);
+            return null;
+        }
     }
        
     public static void main(String[] args) throws Exception {
