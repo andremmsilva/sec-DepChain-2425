@@ -26,14 +26,14 @@ public class Message {
 
     public static Message fromStr(String messageStr) {
         String[] parts = messageStr.split("\\|\\|");
-        if (parts.length < 3) {
+        if (parts.length < 2) {
             System.err.println("Received incorrect message format - " + messageStr);
             return null;
         }
 
         try {
             Message m = new Message(parts[0], Integer.parseInt(parts[1]));
-            if (!parts[2].isEmpty()) {
+            if (parts.length > 2 && !parts[2].isEmpty()) {
                 m.mac = CryptoUtils.decodeFromBase64(parts[2]);
             }
 
