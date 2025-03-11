@@ -1,91 +1,103 @@
 package depchain.network;
 
-import java.net.InetAddress;
+import depchain.crypto.CryptoUtils;
+
 import java.util.Arrays;
-import java.util.Base64;
 
 public class Message {
-    private InetAddress destination;
-    private int destinationPort;
-    private byte[] payload;
+    private String payload;
+    private byte[] mac;
+    private byte[] signature;
+    private int senderId;
 
-    public Message(InetAddress destination, int destinationPort, byte[] payload) {
-        this.destination = destination;
-        this.destinationPort = destinationPort;
+    public Message(String payload, int senderId) {
         this.payload = payload;
+        this.senderId = senderId;
+        this.mac = null;
+        this.signature = null;
     }
 
-    public Message(InetAddress destination, int destinationPort, String message, byte[] signature, int senderId) {
-        this.destination = destination;
-        this.destinationPort = destinationPort;
-
-        String signedMessage = senderId + "|" + message + "|" + Base64.getEncoder().encodeToString(signature);
-        this.payload = signedMessage.getBytes();
+    public Message(String payload, int senderId, byte[] mac, byte[] signature) {
+        this.payload = payload;
+        this.mac = mac;
+        this.signature = signature;
+        this.senderId = senderId;
     }
 
-    public byte[] getSignature() {
-        String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
-        String[] parts = payloadStr.split("\\|");
-
-        if (parts.length != 3) {
-            System.err.println("Malformed message: " + payloadStr);
-            return new byte[0]; // Return empty array to avoid decoding errors
+    public static Message fromStr(String messageStr) {
+        String[] parts = messageStr.split("\\|\\|");
+        if (parts.length < 3) {
+            System.err.println("Received incorrect message format - " + messageStr);
+            return null;
         }
 
         try {
-            return Base64.getDecoder().decode(parts[2]);
-        } catch (IllegalArgumentException e) {
-            System.err.println("Failed to decode signature: " + parts[2]);
-            return new byte[0]; // Avoid crashing due to malformed Base64
+            Message m = new Message(parts[0], Integer.parseInt(parts[1]));
+            if (!parts[2].isEmpty()) {
+                m.mac = CryptoUtils.decodeFromBase64(parts[2]);
+            }
+
+            if (parts.length > 3 && !parts[3].isEmpty()) {
+                m.signature = CryptoUtils.decodeFromBase64(parts[3]);
+            }
+
+            return m;
+        } catch (NumberFormatException e) {
+            System.err.println("Received incorrect message format - " + messageStr);
+            return null;
         }
     }
 
-    public String getMessage() {
-        String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
-        String[] parts = payloadStr.split("\\|");
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(payload);
+        sb.append("||");
+        sb.append(senderId);
 
-        if (parts.length != 3) {
-            System.err.println("Malformed message: " + payloadStr);
-            return ""; // Prevent incorrect access
+        sb.append("||");
+        if (mac != null) {
+            sb.append(CryptoUtils.encodeToBase64(mac));
         }
 
-        return parts[1];
-    }
-
-    public int getSenderId() {
-        String payloadStr = new String(this.getPayload()).trim(); // Trim unwanted chars
-        String[] parts = payloadStr.split("\\|");
-
-        if (parts.length != 3) {
-            System.err.println("Malformed message: " + payloadStr);
-            return -1; // Prevent incorrect access
+        sb.append("||");
+        if (signature != null) {
+            sb.append(CryptoUtils.encodeToBase64(signature));
         }
 
-        return Integer.parseInt(parts[0]);
+        return sb.toString();
     }
 
-    public InetAddress getDestination() {
-        return destination;
-    }
-
-    public void setDestination(InetAddress destination) {
-        this.destination = destination;
-    }
-
-    public int getDestinationPort() {
-        return destinationPort;
-    }
-
-    public void setDestinationPort(int destinationPort) {
-        this.destinationPort = destinationPort;
-    }
-
-    public byte[] getPayload() {
+    public String getPayload() {
         return payload;
     }
 
-    public void setPayload(byte[] payload) {
+    public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public byte[] getMac() {
+        return mac;
+    }
+
+    public void setMac(byte[] mac) {
+        this.mac = mac;
+    }
+
+    public byte[] getSignature() {
+        return signature;
+    }
+
+    public void setSignature(byte[] signature) {
+        this.signature = signature;
+    }
+
+    public int getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(int senderId) {
+        this.senderId = senderId;
     }
 
     @Override
@@ -93,14 +105,15 @@ public class Message {
         if (o == null || getClass() != o.getClass()) return false;
 
         Message message = (Message) o;
-        return destinationPort == message.destinationPort && destination.equals(message.destination) && Arrays.equals(payload, message.payload);
+        return getSenderId() == message.getSenderId() && getPayload().equals(message.getPayload()) && Arrays.equals(getMac(), message.getMac()) && Arrays.equals(getSignature(), message.getSignature());
     }
 
     @Override
     public int hashCode() {
-        int result = destination.hashCode();
-        result = 31 * result + destinationPort;
-        result = 31 * result + Arrays.hashCode(payload);
+        int result = getPayload().hashCode();
+        result = 31 * result + Arrays.hashCode(getMac());
+        result = 31 * result + Arrays.hashCode(getSignature());
+        result = 31 * result + getSenderId();
         return result;
     }
 }

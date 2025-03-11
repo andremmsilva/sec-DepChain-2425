@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class DepChainConfigTest {
     @Test
@@ -14,12 +14,12 @@ public class DepChainConfigTest {
         DepChainConfig config = new DepChainConfig(0);
 
         // Should have the correct id
-        assertEquals(0, DepChainConfig.SELF_ID);
+        assertEquals(0, config.selfId);
 
         PublicKey publicKey = CryptoUtils.loadPublicKey("./src/resources/keys/public_key_0.pem");
         PrivateKey privateKey = CryptoUtils.loadPrivateKey("./src/resources/keys/private_key_0.pem");
 
         assertEquals(publicKey.toString(), config.getSelfPublicKey().toString());
-        assertEquals(privateKey.toString(), DepChainConfig.PRIVATE_KEY.toString());
+        assertEquals(privateKey.toString(), config.privateKey.toString());
     }
 }
