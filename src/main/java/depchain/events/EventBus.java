@@ -6,7 +6,8 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public class EventBus {
-    private final ConcurrentMap<Class <? extends Event>, List<Consumer<? extends Event>>> listeners = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<? extends Event>, List<Consumer<? extends Event>>> listeners =
+            new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     public <E extends Event> void register(Class<E> eventType, Consumer<E> listener) {
@@ -14,12 +15,16 @@ public class EventBus {
     }
 
     public <E extends Event> void unregister(Class<E> eventType, Consumer<E> listener) {
-        listeners.computeIfPresent(eventType, (k, v) -> null);
+        listeners.computeIfPresent(eventType, (k, v) -> {
+            v.removeIf(l -> l == listener);
+            return v.isEmpty() ? null : v;
+        });
     }
 
     public <E extends Event> void publish(E event) {
-        List<Consumer<? extends Event>> eventListeners = this.listeners.getOrDefault(event.getClass(), Collections.emptyList());
-        for(Consumer<? extends Event> listener : eventListeners) {
+        List<Consumer<? extends Event>> eventListeners = this.listeners.getOrDefault(event.getClass(),
+                Collections.emptyList());
+        for (Consumer<? extends Event> listener : eventListeners) {
             @SuppressWarnings("unchecked")
             Consumer<E> consumer = (Consumer<E>) listener;
 
