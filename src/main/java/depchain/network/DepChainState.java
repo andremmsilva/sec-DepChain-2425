@@ -8,7 +8,7 @@ import java.util.Map;
 import classes.State;
 import classes.Tuple;
 import depchain.config.DepChainConfig;
-import depchain.network.AuthenticatedPerfectLink;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 public class DepChainState {
     private volatile List<State> collected = new ArrayList<>(); 
