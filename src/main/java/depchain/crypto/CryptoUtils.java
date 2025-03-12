@@ -132,7 +132,7 @@ public class CryptoUtils {
         return Base64.getEncoder().encodeToString(data);
     }
 
-    public static byte[] decodeFromBase64(String data) {
+    public static byte[] decodeFromBase64(String data) throws IllegalArgumentException {
         return Base64.getDecoder().decode(data);
     }
 }

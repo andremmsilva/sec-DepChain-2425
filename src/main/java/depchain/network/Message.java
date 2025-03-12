@@ -10,6 +10,13 @@ public class Message {
     private byte[] signature;
     private int senderId;
 
+    public Message(Message other) {
+        this.payload = other.payload;
+        this.mac = other.mac;
+        this.signature = other.signature;
+        this.senderId = other.senderId;
+    }
+
     public Message(String payload, int senderId) {
         this.payload = payload;
         this.senderId = senderId;
@@ -25,22 +32,42 @@ public class Message {
     }
 
     public static Message fromStr(String messageStr) {
-        String[] parts = messageStr.split("\\|\\|");
-        if (parts.length < 2) {
+        // Find the last delimiter for the signature
+        int lastDelim = messageStr.lastIndexOf("||");
+        if (lastDelim == -1) {
             System.err.println("Received incorrect message format - " + messageStr);
             return null;
         }
+        String signaturePart = messageStr.substring(lastDelim + 2);
+        String remainder = messageStr.substring(0, lastDelim);
+
+        // Find the second last delimiter for the MAC
+        int secondLastDelim = remainder.lastIndexOf("||");
+        if (secondLastDelim == -1) {
+            System.err.println("Received incorrect message format - " + messageStr);
+            return null;
+        }
+        String macPart = remainder.substring(secondLastDelim + 2);
+        remainder = remainder.substring(0, secondLastDelim);
+
+        // Find the third last delimiter for the senderId
+        int thirdLastDelim = remainder.lastIndexOf("||");
+        if (thirdLastDelim == -1) {
+            System.err.println("Received incorrect message format - " + messageStr);
+            return null;
+        }
+        String senderIdStr = remainder.substring(thirdLastDelim + 2);
+        String payload = remainder.substring(0, thirdLastDelim);
 
         try {
-            Message m = new Message(parts[0], Integer.parseInt(parts[1]));
-            if (parts.length > 2 && !parts[2].isEmpty()) {
-                m.mac = CryptoUtils.decodeFromBase64(parts[2]);
+            int senderId = Integer.parseInt(senderIdStr);
+            Message m = new Message(payload, senderId);
+            if (!macPart.isEmpty()) {
+                m.mac = CryptoUtils.decodeFromBase64(macPart);
             }
-
-            if (parts.length > 3 && !parts[3].isEmpty()) {
-                m.signature = CryptoUtils.decodeFromBase64(parts[3]);
+            if (!signaturePart.isEmpty()) {
+                m.signature = CryptoUtils.decodeFromBase64(signaturePart);
             }
-
             return m;
         } catch (NumberFormatException e) {
             System.err.println("Received incorrect message format - " + messageStr);

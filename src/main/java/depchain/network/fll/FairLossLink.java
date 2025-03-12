@@ -12,13 +12,11 @@ import java.util.function.Consumer;
 public class FairLossLink {
     private final DepChainConfig config;
     // Address and port of the target of this link.
-    private final String destAddress;
-    private final int destPort;
     private final Thread listenerThread;
     private final DatagramSocket socket;
     private final Consumer<FLLSendEvent> sendHandler = e -> {
         try {
-            this.sendMessage(e.arg);
+            this.sendMessage(e.arg, e.getTargetId());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -26,9 +24,7 @@ public class FairLossLink {
     // Received message blocking queue
     private volatile boolean running = true;
 
-    public FairLossLink(String destAddress, int destPort, DepChainConfig config) {
-        this.destAddress = destAddress;
-        this.destPort = destPort;
+    public FairLossLink(DepChainConfig config) {
         this.config = config;
 
         this.listenerThread = new Thread(this::startReceiving);
@@ -65,7 +61,9 @@ public class FairLossLink {
         }
     }
 
-    public void sendMessage(Message m) throws Exception {
+    public void sendMessage(Message m, int targetId) throws Exception {
+        String destAddress = DepChainConfig.ADDRESS;
+        int destPort = DepChainConfig.BASE_PORT + targetId;
         DatagramPacket packet = new DatagramPacket(m.toString().getBytes(), m.toString().length(),
                 InetAddress.getByName(destAddress),
                 destPort);

@@ -17,10 +17,11 @@ public class StubbornLink {
     private final DepChainConfig config;
     private final FairLossLink fairLossLink;
     private final Consumer<FLLDeliverEvent> fllDeliverHandler;
-    private final Queue<Message> pendingMessages = new ConcurrentLinkedQueue<>();
+    private final Queue<SLSendEvent> pendingMessages = new ConcurrentLinkedQueue<>();
     private final Consumer<SLSendEvent> sendHandler = e -> {
         try {
-            this.sendMessage(e.arg);
+            this.sendOnce(e.arg, e.getTargetId());
+            this.pendingMessages.add(e);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -28,9 +29,9 @@ public class StubbornLink {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private volatile boolean running = true;
 
-    public StubbornLink(String destAddress, int destPort, DepChainConfig config) {
+    public StubbornLink(DepChainConfig config) {
         this.config = config;
-        this.fairLossLink = new FairLossLink(destAddress, destPort, config);
+        this.fairLossLink = new FairLossLink(config);
         this.fllDeliverHandler = e -> this.config.eventBus.publish(new SLDeliverEvent(e.arg));
 
         // Propagate message arrivals
@@ -41,29 +42,20 @@ public class StubbornLink {
         this.startRetransmissionTask();
     }
 
-    public void sendMessage(Message message) {
-        this.pendingMessages.add(message);
-        this.sendOnce(message);
-    }
-
-    private void sendOnce(Message m) {
-        this.config.eventBus.publish(new FLLSendEvent(m));
+    private void sendOnce(Message m, int targetId) {
+        this.config.eventBus.publish(new FLLSendEvent(m, targetId));
     }
 
     private void startRetransmissionTask() {
         // Retransmit every 2 seconds
         this.scheduler.scheduleAtFixedRate(() -> {
             if (!running) return;
-            for (Message m : pendingMessages) {
+            for (SLSendEvent e : pendingMessages) {
                 // Retransmit messages
-                System.err.println("Retransmitting: " + m);
-                this.sendOnce(m);
+//                System.err.println("Retransmitting: " + e.);
+                this.sendOnce(e.arg, e.getTargetId());
             }
         }, 1000, 2000, TimeUnit.MILLISECONDS);
-    }
-
-    public void acknowledgeMessage(Message m) {
-        this.pendingMessages.remove(m);
     }
 
     public void close() {

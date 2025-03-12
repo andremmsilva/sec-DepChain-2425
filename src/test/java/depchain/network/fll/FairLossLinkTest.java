@@ -17,8 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class FairLossLinkTest {
-    private static final String destAddress = "127.0.0.1";
-
     private static DepChainConfig receiverConfig;
     private static DepChainConfig senderConfig;
     private static FairLossLink sender;
@@ -29,8 +27,8 @@ public class FairLossLinkTest {
     static void setup() {
         senderConfig = new DepChainConfig(0);
         receiverConfig = new DepChainConfig(1);
-        sender = new FairLossLink(destAddress, 8081, senderConfig);
-        receiver = new FairLossLink(destAddress, 8080, receiverConfig);
+        sender = new FairLossLink(senderConfig);
+        receiver = new FairLossLink(receiverConfig);
         receivedMessages = new ArrayList<>();
         try {
             Thread.sleep(500);
@@ -61,7 +59,7 @@ public class FairLossLinkTest {
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);
-        sender.sendMessage(message1);
+        sender.sendMessage(message1, receiverConfig.selfId);
 
         latch.await(); // Wait for message reception
 
@@ -80,7 +78,7 @@ public class FairLossLinkTest {
         };
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
-        senderConfig.eventBus.publish(new FLLSendEvent(new Message("SEND|TEST", senderConfig.selfId)));
+        senderConfig.eventBus.publish(new FLLSendEvent(new Message("SEND|TEST", senderConfig.selfId), receiverConfig.selfId));
 
         latch.await();
 
@@ -101,8 +99,8 @@ public class FairLossLinkTest {
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);
-        sender.sendMessage(message1);
-        sender.sendMessage(message1); // Send twice
+        sender.sendMessage(message1, receiverConfig.selfId);
+        sender.sendMessage(message1, receiverConfig.selfId); // Send twice
 
         latch.await(); // Wait for 2 messages
 
@@ -124,8 +122,8 @@ public class FairLossLinkTest {
         Message message1 = new Message("First", 0);
         Message message2 = new Message("Second", 0);
 
-        sender.sendMessage(message1);
-        sender.sendMessage(message2);
+        sender.sendMessage(message1, receiverConfig.selfId);
+        sender.sendMessage(message2, receiverConfig.selfId);
 
         latch.await(); // Wait for both messages
 

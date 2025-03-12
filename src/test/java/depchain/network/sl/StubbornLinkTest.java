@@ -27,8 +27,8 @@ public class StubbornLinkTest {
     static void setup() {
         senderConfig = new DepChainConfig(0);
         receiverConfig = new DepChainConfig(1);
-        sender = new StubbornLink(destAddress, 8081, senderConfig);
-        receiver = new StubbornLink(destAddress, 8080, receiverConfig);
+        sender = new StubbornLink(senderConfig);
+        receiver = new StubbornLink(receiverConfig);
         receivedMessages = new ArrayList<>();
         try {
             Thread.sleep(500);
@@ -59,7 +59,7 @@ public class StubbornLinkTest {
         receiverConfig.eventBus.register(SLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);
-        senderConfig.eventBus.publish(new SLSendEvent(message1));
+        senderConfig.eventBus.publish(new SLSendEvent(message1, receiverConfig.selfId));
 
         latch.await(); // Wait for message reception
 
@@ -77,7 +77,7 @@ public class StubbornLinkTest {
         receiverConfig.eventBus.register(SLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);
-        senderConfig.eventBus.publish(new SLSendEvent(message1));
+        senderConfig.eventBus.publish(new SLSendEvent(message1, receiverConfig.selfId));
 
         Thread.sleep(3500);
 
