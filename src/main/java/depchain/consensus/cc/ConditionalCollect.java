@@ -106,8 +106,7 @@ public class ConditionalCollect {
 
                     Message m = new Message(payload.toString(), this.config.selfId);
                     for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-                        Message copy = new Message(m);
-                        this.config.eventBus.publish(new APLSendEvent(copy, i));
+                        this.config.eventBus.publish(new APLSendEvent(m, i));
                     }
                     this.messages.clear();
                 }

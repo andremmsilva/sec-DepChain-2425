@@ -122,7 +122,8 @@ public class AuthenticatedPerfectLink {
         this.config.eventBus.register(SLDeliverEvent.class, slDeliverHandler);
     }
 
-    public void sendMessage(Message m, int targetId) {
+    public void sendMessage(Message msg, int targetId) {
+        Message m = new Message(msg);
         // First message exchange - share a key for MACs
         while (!this.config.secretKeys.containsKey(targetId)) {
             try {
