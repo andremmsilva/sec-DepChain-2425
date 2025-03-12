@@ -1,4 +1,4 @@
-package depchain;
+package depchain.network;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +31,10 @@ public class DepChainState {
 
     public int getEpoch() {
         return currentEpoch;
+    }
+
+    public List<Integer> getAcceptlist() {
+        return acceptlist;
     }
 
     public void addStateToCollected(int id, State state){
