@@ -1,14 +1,5 @@
 package depchain.network.apl;
 
-import depchain.config.DepChainConfig;
-import depchain.crypto.CryptoUtils;
-import depchain.network.Message;
-import depchain.network.fll.FLLSendEvent;
-import depchain.network.sl.SLDeliverEvent;
-import depchain.network.sl.SLSendEvent;
-import depchain.network.sl.StubbornLink;
-
-import javax.crypto.SecretKey;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Collections;
@@ -18,6 +9,16 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import javax.crypto.SecretKey;
+
+import depchain.config.DepChainConfig;
+import depchain.crypto.CryptoUtils;
+import depchain.network.Message;
+import depchain.network.fll.FLLSendEvent;
+import depchain.network.sl.SLDeliverEvent;
+import depchain.network.sl.SLSendEvent;
+import depchain.network.sl.StubbornLink;
 
 public class AuthenticatedPerfectLink {
     private static final String HANDSHAKE_PREFIX = "HS";
@@ -34,6 +35,7 @@ public class AuthenticatedPerfectLink {
             throw new RuntimeException(ex);
         }
     };
+    
     private final Consumer<SLDeliverEvent> slDeliverHandler = e -> {
         Message m = e.arg;
         lock.lock();
