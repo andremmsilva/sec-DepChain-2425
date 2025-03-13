@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -29,7 +30,7 @@ public class FairLossLinkTest {
         receiverConfig = new DepChainConfig(1);
         sender = new FairLossLink(senderConfig);
         receiver = new FairLossLink(receiverConfig);
-        receivedMessages = new ArrayList<>();
+        receivedMessages = Collections.synchronizedList(new ArrayList<>());
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
@@ -78,7 +79,8 @@ public class FairLossLinkTest {
         };
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
-        senderConfig.eventBus.publish(new FLLSendEvent(new Message("SEND|TEST", senderConfig.selfId), receiverConfig.selfId));
+        senderConfig.eventBus.publish(new FLLSendEvent(new Message("SEND|TEST", senderConfig.selfId),
+                receiverConfig.selfId));
 
         latch.await();
 
