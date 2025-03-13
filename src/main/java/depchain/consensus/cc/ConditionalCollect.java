@@ -1,13 +1,10 @@
 package depchain.consensus.cc;
 
-import depchain.config.DepChainConfig;
-import depchain.crypto.CryptoUtils;
-import depchain.network.Message;
-import depchain.network.apl.APLDeliverEvent;
-import depchain.network.apl.APLSendEvent;
-import depchain.network.apl.AuthenticatedPerfectLink;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +13,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+
+import depchain.config.DepChainConfig;
+import depchain.crypto.CryptoUtils;
+import depchain.network.Message;
+import depchain.network.apl.APLDeliverEvent;
+import depchain.network.apl.APLSendEvent;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 public class ConditionalCollect {
     private static final String SEND_PREFIX = "SEND";
@@ -31,6 +35,7 @@ public class ConditionalCollect {
     private Predicate<List<Message>> outputPredicate;
     private DepChainConfig config;
     private final Consumer<CCInputEvent> onInput = (event) -> {
+        // Send to leader
         Message m = event.arg;
         byte[] signature = CryptoUtils.signMessage(m.getPayload(), config.getSelfPrivateKey());
         m.setSignature(signature);
@@ -42,7 +47,9 @@ public class ConditionalCollect {
     private final Consumer<APLDeliverEvent> onDeliver = (event) -> {
         Message m = event.arg;
         String payload = m.getPayload();
+        
         if (payload.startsWith(SEND_PREFIX) && this.config.selfId.equals(DepChainConfig.LEADER)) {
+            // Leader received SEND###...
             payload = m.getPayload().split(SEND_PREFIX + PAYLOAD_SEPARATOR)[1];
             if (CryptoUtils.verifySignature(payload, m.getSignature(), config.getPublicKey(m.getSenderId()))) {
                 messages.put(m.getSenderId(), new Message(payload, m.getSenderId(), m.getMac(), m.getSignature()));
