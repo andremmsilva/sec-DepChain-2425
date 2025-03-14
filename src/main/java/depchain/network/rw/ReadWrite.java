@@ -205,7 +205,7 @@ public class ReadWrite {
         // 3) If we still have a value, broadcast (epoch, bestVal)
         if (bestVal != null) {
             int currentEpoch = serverState.getEpoch();  // an integer
-            Tuple tuple = new Tuple(currentEpoch, bestVal);
+            Tuple tuple = new Tuple(currentEpoch + 1, bestVal);
             broadcast("WRITE###" + tuple);
             System.out.println(
                 "Process " + serverState.getConfig().selfId
@@ -258,7 +258,7 @@ public class ReadWrite {
                 // Quorum found => broadcast ACCEPT, reset written[]
                 Arrays.fill(written, null);
 
-                broadcast("ACCEPT###" + v);
+                broadcast("ACCEPT" + v);
                 System.out.println("Process " + serverState.getConfig().selfId
                                 + " broadcasting ACCEPT###" + v);
                 return; // Only pick one value, or break if you prefer
@@ -315,6 +315,8 @@ public class ReadWrite {
     private void decideValue(String v) {
         System.out.println("Process " + serverState.getConfig().selfId
                            + " DECIDES value: " + v);
+        this.serverState.getState().setLastRound(new Tuple(this.serverState.getEpoch(), v));
+        //eventBus.publish(new TransactionConfirmedEvent(v, success));
         // If you want, publish an event so other code can see we decided:
         // eventBus.publish(new DecideEvent(v));
     }

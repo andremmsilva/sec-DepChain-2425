@@ -1,15 +1,17 @@
 package depchain.config;
 
-import depchain.crypto.CryptoUtils;
-import depchain.events.EventBus;
-import depchain.network.SocketManager;
-
-import javax.crypto.SecretKey;
+import java.net.SocketException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import javax.crypto.SecretKey;
+
+import depchain.crypto.CryptoUtils;
+import depchain.events.EventBus;
+import depchain.network.SocketManager;
 
 public class DepChainConfig {
     public static final Integer PROCESSES = 4;
@@ -36,7 +38,7 @@ public class DepChainConfig {
                     CryptoUtils.loadPrivateKey(makeKeyFileName("/src/resources/keys/private_key_" + selfId + ".pem"));
             this.eventBus = new EventBus(this);
             this.socketManager = new SocketManager(this);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException | SocketException e) {
             throw new RuntimeException(e);
         }
     }
