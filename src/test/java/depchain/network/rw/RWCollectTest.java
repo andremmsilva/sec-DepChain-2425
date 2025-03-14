@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * Tests the onCCCollected event -> verify we broadcast 'WRITE###...'.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class ReadWriteCollectTest {
+public class RWCollectTest {
 
     private DepChainConfig leaderConfig;
     private EventBus leaderBus;

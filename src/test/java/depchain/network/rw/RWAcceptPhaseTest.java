@@ -21,7 +21,7 @@ import java.util.List;
  *   - currently that logs to console, so we just ensure no crash
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class ReadWriteAcceptPhaseTest {
+public class RWAcceptPhaseTest {
 
     private DepChainConfig leaderConfig;
     private EventBus leaderBus;
@@ -51,9 +51,9 @@ public class ReadWriteAcceptPhaseTest {
         Message a2 = new Message("ACCEPT###myVal", 2);
         Message a3 = new Message("ACCEPT###myVal", 3);
 
-        leaderBus.publish(new APLDeliverEvent(a1));
-        leaderBus.publish(new APLDeliverEvent(a2));
-        leaderBus.publish(new APLDeliverEvent(a3));
+        leaderConfig.eventBus.publish(new APLDeliverEvent(a1));
+        leaderConfig.eventBus.publish(new APLDeliverEvent(a2));
+        leaderConfig.eventBus.publish(new APLDeliverEvent(a3));
 
         Thread.sleep(500);
 

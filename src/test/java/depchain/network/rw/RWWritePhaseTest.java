@@ -26,7 +26,7 @@ import depchain.network.apl.AuthenticatedPerfectLink;
  *   - Once watchers see a quorum, they broadcast "ACCEPT###v"
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class ReadWriteWritePhaseTest {
+public class RWWritePhaseTest {
 
     private DepChainConfig leaderConfig;
     private EventBus leaderBus;

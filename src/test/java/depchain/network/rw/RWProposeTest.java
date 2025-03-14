@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  *  - Non-leader does nothing
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class ReadWriteProposeTest {
+public class RWProposeTest {
 
     private DepChainConfig leaderConfig, nonLeaderConfig;
     private EventBus leaderBus, nonLeaderBus;
