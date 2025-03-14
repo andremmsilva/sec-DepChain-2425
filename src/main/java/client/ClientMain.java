@@ -5,7 +5,6 @@ import library.ClientLibrary;
 
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 public class ClientMain {
     public static void main(String[] args) throws Exception {
@@ -27,7 +26,9 @@ public class ClientMain {
         clientLibrary.close();
 
         final Scanner scanner = new Scanner(System.in);
-
+        System.out.println("Client is running. Type 'append <transaction>' to send a transaction.");
+        System.out.println("Type 'exit' to quit.");
+        
         while (true) {
             System.out.printf("%n> ");
             String line = scanner.nextLine();
@@ -56,6 +57,8 @@ public class ClientMain {
                             System.err.printf("Transaction failed: %s%n", transaction);
                         }
                     });
+                } else {
+                    System.err.println("Usage: append <transaction>");
                 }
 
                 case "exit":
