@@ -28,7 +28,7 @@ import depchain.network.apl.APLSendEvent;
 
 public class ReadWrite {
     private DepChainState serverState; // Holds current epoch, etc.
-    // For demonstration we’ll keep track of which value each process has “written” or “accepted.”
+    // For demonstration we'll keep track of which value each process has 'written' or 'accepted.'
     private final String[] written = new String[DepChainConfig.PROCESSES];
     private final String[] accepted = new String[DepChainConfig.PROCESSES];
     // For concurrency control in watchers
@@ -64,10 +64,10 @@ public class ReadWrite {
     }
 
     /**
-     *  Handle the “bep Propose | v” event. Only the leader should act here.
+     *  Handle the 'bep Propose | v' event. Only the leader should act here.
      */
     private final Consumer<ProposeEvent> onProposal = (event) -> {
-        System.out.println("On ProposeEvent on RW Class" + event.arg.toString());
+        System.out.println("On ProposeEvent on RW Class" + event.arg.getPayload());
         String proposedValue = event.arg.getPayload(); 
         int selfId = serverState.getConfig().selfId;
 
@@ -78,8 +78,7 @@ public class ReadWrite {
 
         // If we have not yet stored any "last-round" value in our internal DepChainState,
         // set it to (epoch, proposedValue). 
-        if (serverState.getState().getLastRound() == null || 
-            serverState.getState().getLastRound().getValue() == null) {
+        if (serverState.getState().getLastRound().getValue() == "") {
             // Suppose we track "timestamp" = current epoch, "value" = proposedValue
             serverState.getState().setLastRound(new Tuple(serverState.getEpoch(), proposedValue));
         }
@@ -90,26 +89,26 @@ public class ReadWrite {
 
     /**
      *  Handle any messages delivered from AuthenticatedPerfectLink (APL). 
-     *  For example: if the leader sent "READ", processes respond with "STATE–..." 
-     *  or if the leader eventually sends "WRITE–...", we handle that, etc.
+     *  For example: if the leader sent "READ", processes respond with "STATE-..." 
+     *  or if the leader eventually sends "WRITE-...", we handle that, etc.
      */
     private final Consumer<APLDeliverEvent> onAPLDelivery = (event) -> {
-        System.out.println("On ALPDeliverEvent on RW Class " + event.arg.toString());
         Message msg = event.arg;
+        System.out.println("On ALPDeliverEvent on RW Class " + msg.getPayload());
         String payload = msg.getPayload();
         int sender = msg.getSenderId();
 
-        // Example: if we receive "[READ]" from the leader, we respond by sending "STATE–..."
+        // Example: if we receive "[READ]" from the leader, we respond by sending "STATE-..."
         if ("READ".equals(payload) && sender == DepChainConfig.LEADER) {
             System.out.println("Got Read Message");
             sendStateToConditionalCollect();
         }
         else if (payload.startsWith("WRITE###")) {
             String v = payload.substring("WRITE###".length());
-            System.out.println("Got Write Message" + v.toString());
+            System.out.println("Got Write Message" + v);
 
             System.out.println("On Write parsing parsed string: " + v + "\tFrom: " + Integer.toString(sender));
-    
+
             lock.lock();
             try {
                 written[sender] = v;
@@ -123,7 +122,7 @@ public class ReadWrite {
         // If the leader (or anyone) broadcasts "ACCEPT###v", store it and signal the watcher
         else if (payload.startsWith("ACCEPT###")) {
             String v = payload.substring("ACCEPT###".length());
-            System.out.println("Got accept Message" + v.toString());
+            System.out.println("Got accept Message" + v);
     
             lock.lock();
             try {
@@ -134,10 +133,16 @@ public class ReadWrite {
                 lock.unlock();
             }
         }
+
+        else if (payload.startsWith("COLLECTED###")) {
+            String v = payload.substring("SEND###".length());
+            System.out.println("Got SEND Message: " + v);
+
+        }
     };
 
     /**
-     *  Publish a “STATE###...” message into the CC pipeline (ConditionalCollect). 
+     *  Publish a 'STATE###...' message into the CC pipeline (ConditionalCollect). 
      *  This is typically done when we get a "READ" from the leader.
      */
     private void sendStateToConditionalCollect() {
@@ -146,7 +151,7 @@ public class ReadWrite {
         String stateString = serverState.getState().toString();
 
         Message m = new Message(stateString, serverState.getConfig().selfId);
-        // Feed it into the ConditionalCollect’s input. 
+        // Feed it into the ConditionalCollect's input. 
         // (ConditionalCollect is listening for CCInputEvent.)
         eventBus.publish(new CCInputEvent(m));  
     }
@@ -154,7 +159,7 @@ public class ReadWrite {
     /**
      *  When the CC has collected enough "STATE-..." messages from processes, 
      *  it publishes CCCollectedEvent. We can examine the set of states, 
-     *  pick a final value to write, and then broadcast a "WRITE–value".
+     *  pick a final value to write, and then broadcast a "WRITE-value".
      */
     private final Consumer<CCCollectedEvent> onCCCollected = (event) -> {
         System.out.println("On CCCollectedEvent RW class " + event.arg.toString());
@@ -162,7 +167,10 @@ public class ReadWrite {
         List<State> allStates = new ArrayList<>();
 
         for( Message m : collectedStates){
+            System.out.println("\n////////////////////////////////" + m.getPayload() + "\n////////////////////////////////");
             State st = State.fromStr(m.getPayload());
+            System.out.println("\n///////////////////// STATEVALUE" + st.toString() + "\n////////////////////////////////");
+
             allStates.add(st);
         }
 

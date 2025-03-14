@@ -158,7 +158,7 @@ public class AuthenticatedPerfectLink {
         m.setMac(mac);
 
         // And send it over the network
-        System.out.println("\n" + this + " is sending " + m.getPayload() + "\nto: " + targetId + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
+        System.out.println("\n" + this + " is sending " + m.getPayload() + "\nto: " + targetId + "\nMAC: " /*+ CryptoUtils.encodeToBase64(m.getMac()) + "\n"*/);
         this.config.eventBus.publish(new SLSendEvent(m, targetId));
     }
 

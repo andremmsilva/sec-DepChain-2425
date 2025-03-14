@@ -1,37 +1,44 @@
 package depchain.consensus.cc;
 
-import depchain.config.DepChainConfig;
-import depchain.network.Message;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import depchain.config.DepChainConfig;
+import depchain.network.Message;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 public class ConditionalCollectTest {
+    private final List<AuthenticatedPerfectLink> links = new ArrayList<>(DepChainConfig.PROCESSES);
     private final List<DepChainConfig> configs = new ArrayList<>(DepChainConfig.PROCESSES);
     private final List<ConditionalCollect> ccs = new ArrayList<>(DepChainConfig.PROCESSES);
 
     @BeforeEach
     public void beforeEach() throws InterruptedException {
         final Predicate<List<Message>> mockPredicate = msgs -> true;
+        links.clear();
         configs.clear();
         ccs.clear();
         configs.add(new DepChainConfig(0));
         configs.add(new DepChainConfig(1));
         configs.add(new DepChainConfig(2));
         configs.add(new DepChainConfig(3));
-        ccs.add(new ConditionalCollect(configs.get(0), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(1), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(2), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(3), mockPredicate));
+        links.add(new AuthenticatedPerfectLink(configs.get(0)));
+        links.add(new AuthenticatedPerfectLink(configs.get(1)));
+        links.add(new AuthenticatedPerfectLink(configs.get(2)));
+        links.add(new AuthenticatedPerfectLink(configs.get(3)));
+        ccs.add(new ConditionalCollect(configs.get(0), links.get(0), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(1), links.get(1), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(2), links.get(2), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(3), links.get(3), mockPredicate));
         Thread.sleep(500);
     }
 

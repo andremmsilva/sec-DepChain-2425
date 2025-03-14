@@ -36,18 +36,17 @@ public class ConditionalCollect {
     private DepChainConfig config;
     
     private final Consumer<CCInputEvent> onInput = (event) -> {
-        System.out.println("On CCInputEvent on Condicional Collect " + event.arg.toString());
         // Send to leader
         Message m = event.arg;
         byte[] signature = CryptoUtils.signMessage(m.getPayload(), config.getSelfPrivateKey());
         m.setSignature(signature);
         m.setPayload(SEND_PREFIX + PAYLOAD_SEPARATOR + m.getPayload());
-        System.out.println(this + " onCCInput " + m);
+        System.out.println(this + " onCCInput " + m.getPayload());
         this.config.eventBus.publish(new APLSendEvent(m, DepChainConfig.LEADER));
     };
 
     private final Consumer<APLDeliverEvent> onDeliver = (event) -> {
-        System.out.println("ON APLDeliverEvent on CondicionalCollect " + event.arg.toString());
+        //System.out.println("ON APLDeliverEvent on CondicionalCollect " + event.arg.getPayload());
         Message m = event.arg;
         String payload = m.getPayload();
         
@@ -88,9 +87,9 @@ public class ConditionalCollect {
         }
     };
 
-    public ConditionalCollect(DepChainConfig config, Predicate<List<Message>> outputPredicate) {
+    public ConditionalCollect(DepChainConfig config, AuthenticatedPerfectLink apl, Predicate<List<Message>> outputPredicate) {
         this.config = config;
-        this.apl = new AuthenticatedPerfectLink(config);
+        this.apl = apl;
         this.outputPredicate = outputPredicate;
 
         this.config.eventBus.register(CCInputEvent.class, onInput);

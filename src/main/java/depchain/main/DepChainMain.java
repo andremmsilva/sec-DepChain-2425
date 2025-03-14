@@ -55,7 +55,7 @@ public class DepChainMain {
         // 5) Create a ConditionalCollect. Usually you pass a predicate 
         //    that returns true if you have enough messages to proceed. 
         //    We'll do a trivial version or a real condition based on N/f.
-        ConditionalCollect cc = new ConditionalCollect(config, messages -> {
+        ConditionalCollect cc = new ConditionalCollect(config, apl, messages -> {
             // e.g. if you need at least N-f states:
             int n = numProcesses; // or DepChainConfig.PROCESSES
             int f = DepChainConfig.FAIL_BOUND;

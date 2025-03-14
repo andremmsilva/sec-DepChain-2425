@@ -24,6 +24,7 @@ public class State {
             System.err.println("ConvertMessageToState: malformed state message - " + messageContent);
             return null;
         }
+
         Tuple lastRound = Tuple.fromStr(parts[0]);   
 
         // Extract writeset (last part after "|")

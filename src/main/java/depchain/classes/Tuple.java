@@ -22,7 +22,7 @@ public class Tuple {
     public static Tuple fromStr(String s) {
         try {
             String tupleStr = s.replaceAll("[()]", "");
-            String[] parts = tupleStr.split(",");
+            String[] parts = tupleStr.split(",", -1);
             return new Tuple(Integer.parseInt(parts[0]), parts[1]);
 
         } catch (NumberFormatException e) {
