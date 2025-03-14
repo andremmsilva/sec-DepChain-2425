@@ -17,6 +17,7 @@ import depchain.events.EventBus;
 import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLSendEvent;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 /**
  * Tests the ProposeEvent handling:
@@ -36,13 +37,13 @@ public class RWProposeTest {
         // Leader
         leaderConfig = new DepChainConfig(0);
         leaderBus = leaderConfig.eventBus;
-        leaderState = new DepChainState(leaderConfig, new ArrayList<>());
+        leaderState = new DepChainState(leaderConfig, new AuthenticatedPerfectLink(leaderConfig));
         leaderRW = new ReadWrite(leaderState);
 
         // Non-leader
         nonLeaderConfig = new DepChainConfig(1);
         nonLeaderBus = nonLeaderConfig.eventBus;
-        nonLeaderState = new DepChainState(nonLeaderConfig, new ArrayList<>());
+        nonLeaderState = new DepChainState(nonLeaderConfig, new AuthenticatedPerfectLink(nonLeaderConfig));
         nonLeaderRW = new ReadWrite(nonLeaderState);
 
         Thread.sleep(200);

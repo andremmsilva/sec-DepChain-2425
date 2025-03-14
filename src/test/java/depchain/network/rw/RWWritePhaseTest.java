@@ -18,6 +18,7 @@ import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLDeliverEvent;
 import depchain.network.apl.APLSendEvent;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 /**
  * Tests the "WRITE###" logic in onAPLDelivery:
@@ -36,7 +37,7 @@ public class RWWritePhaseTest {
     void setUp() throws InterruptedException {
         leaderConfig = new DepChainConfig(0);
         leaderBus = leaderConfig.eventBus;
-        leaderState = new DepChainState(leaderConfig, new ArrayList<>());
+        leaderState = new DepChainState(leaderConfig, new AuthenticatedPerfectLink(leaderConfig));
         leaderRW = new ReadWrite(leaderState);
         Thread.sleep(200);
     }

@@ -1,7 +1,5 @@
 package depchain.main;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 
 import depchain.config.DepChainConfig;
@@ -45,12 +43,10 @@ public class DepChainMain {
         // 3) Create the AuthenticatedPerfectLink or StubbornLink objects. 
         //    If your code expects a list, let's do a single link for ourselves.
         //    (In a real system, you might create one link to each remote peer.)
-        List<AuthenticatedPerfectLink> links = new ArrayList<>();
         AuthenticatedPerfectLink apl = new AuthenticatedPerfectLink(config);
-        links.add(apl);
 
         // 4) Create DepChainState 
-        DepChainState depChainState = new DepChainState(config, links);
+        DepChainState depChainState = new DepChainState(config, apl);
 
         // 5) Create a ConditionalCollect. Usually you pass a predicate 
         //    that returns true if you have enough messages to proceed. 

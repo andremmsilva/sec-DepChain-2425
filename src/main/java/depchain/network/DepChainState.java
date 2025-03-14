@@ -8,14 +8,14 @@ import depchain.network.apl.AuthenticatedPerfectLink;
 
 public class DepChainState {
     private final DepChainConfig config;
-    private volatile List<AuthenticatedPerfectLink>links;
+    private volatile AuthenticatedPerfectLink link;
     private volatile State state;
     private int currentEpoch = 0;
 
-    public DepChainState(DepChainConfig config, List<AuthenticatedPerfectLink> links){
+    public DepChainState(DepChainConfig config, AuthenticatedPerfectLink link){
         this.config = config;
-        this.links = links;
         this.state = new State();
+        this.link = link;
     }
 
     public int getEpoch() {
@@ -23,7 +23,7 @@ public class DepChainState {
     }
 
     public AuthenticatedPerfectLink getLink(int id){
-        return links.get(id);
+        return link;
     }
 
     public DepChainConfig getConfig(){
@@ -35,10 +35,7 @@ public class DepChainState {
     }
 
     public void shutdown() {
-        links.forEach(link -> {
-            link.close();
-        });
-
+        link.close();
         config.eventBus.shutdown();
     }
     

@@ -20,6 +20,7 @@ import depchain.events.EventBus;
 import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLDeliverEvent;
+import depchain.network.apl.AuthenticatedPerfectLink;
 
 /**
  * A single-process test that checks if, upon receiving a "READ" message 
@@ -39,7 +40,7 @@ public class RWSendCCInput {
         // Create ONE process with selfId=1 (non-leader)
         config = new DepChainConfig(1);
         eventBus = config.eventBus;
-        state = new DepChainState(config, new ArrayList<>());
+        state = new DepChainState(config, new AuthenticatedPerfectLink(config));
 
         // Create the ReadWrite instance for this single process
         readWriteInstance = new ReadWrite(state);
