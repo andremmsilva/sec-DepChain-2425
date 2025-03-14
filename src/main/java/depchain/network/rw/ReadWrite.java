@@ -94,7 +94,7 @@ public class ReadWrite {
      */
     private final Consumer<APLDeliverEvent> onAPLDelivery = (event) -> {
         Message msg = event.arg;
-        System.out.println("On ALPDeliverEvent on RW Class " + msg.getPayload());
+        System.out.println("On ALPDeliverEvent on RW: " + msg.getPayload());
         String payload = msg.getPayload();
         int sender = msg.getSenderId();
 
@@ -105,34 +105,38 @@ public class ReadWrite {
         }
         else if (payload.startsWith("WRITE###")) {
             String v = payload.substring("WRITE###".length());
-            System.out.println("Got Write Message" + v);
-
-            System.out.println("On Write parsing parsed string: " + v + "\tFrom: " + Integer.toString(sender));
-
+            System.out.println("Got Write Message " + v + " from " + sender);
+        
             lock.lock();
             try {
+                // Store the write
                 written[sender] = v;
-                // signal the write watcher
-                newWrite.signal();
+                // Wake up BOTH watchers
+                newWrite.signalAll();
+                newAccept.signalAll();  // <--- added
             } finally {
                 lock.unlock();
             }
         }
+        
     
         // If the leader (or anyone) broadcasts "ACCEPT###v", store it and signal the watcher
         else if (payload.startsWith("ACCEPT###")) {
             String v = payload.substring("ACCEPT###".length());
-            System.out.println("Got accept Message" + v);
-    
+            System.out.println("Got accept Message " + v + " from " + sender);
+        
             lock.lock();
             try {
+                // Store the acceptance
                 accepted[sender] = v;
-                // signal the accept watcher
-                newAccept.signal();
+                // Wake up BOTH watchers
+                newAccept.signalAll();
+                newWrite.signalAll();  // <--- added
             } finally {
                 lock.unlock();
             }
         }
+        
 
         else if (payload.startsWith("COLLECTED###")) {
             String v = payload.substring("SEND###".length());
@@ -161,79 +165,107 @@ public class ReadWrite {
      *  it publishes CCCollectedEvent. We can examine the set of states, 
      *  pick a final value to write, and then broadcast a "WRITE-value".
      */
+
     private final Consumer<CCCollectedEvent> onCCCollected = (event) -> {
-        System.out.println("On CCCollectedEvent RW class " + event.arg.toString());
-        List<Message> collectedStates = event.arg;
-        List<State> allStates = new ArrayList<>();
-
-        for( Message m : collectedStates){
-            System.out.println("\n////////////////////////////////" + m.getPayload() + "\n////////////////////////////////");
-            State st = State.fromStr(m.getPayload());
-            System.out.println("\n///////////////////// STATEVALUE" + st.toString() + "\n////////////////////////////////");
-
+    List<Message> collectedStates = event.arg;
+    List<State> allStates = new ArrayList<>();
+    for (Message m : collectedStates) {
+        State st = State.fromStr(m.getPayload());
+        if (st != null) {
             allStates.add(st);
         }
+    }
 
-        System.out.println(allStates.toString());
-    
-        // We'll track the best (ts, val) we see among states with ts > 0
-        int bestTs = 0; 
-        String bestVal = null;
-    
-        // 1) Look through all collected states for the highest ts>0
+    int f = DepChainConfig.FAIL_BOUND;
+
+    // ----------------------------------------------------------------
+    // 1) Gather *all* distinct (ts, val) pairs from each state's lastRound,
+    //    but only if ts>0 & val != "".
+    // ----------------------------------------------------------------
+    List<Tuple> candidates = new ArrayList<>();
+    for (State st : allStates) {
+        Tuple lr = st.getLastRound();
+        if (lr != null && lr.getTimestamp() > 0 && !lr.getValue().isEmpty()) {
+            candidates.add(lr);
+        }
+    }
+
+    // 2) Among all candidates, find the one with the largest ts that also
+    //    appears in >= f+1 distinct writesets. We store (bestTs, bestVal).
+    int bestTs = -1;
+    String bestVal = null;
+
+    // We might have duplicates in 'candidates'. That's okay.
+    // We'll check them all, ignoring duplicates. 
+    // If you want to ignore duplicates up front, you could use a set.
+    for (Tuple candidate : candidates) {
+        int ts = candidate.getTimestamp();
+        String val = candidate.getValue();
+
+        // Count how many states have 'val' in their writeSet
+        int count = 0;
         for (State st : allStates) {
-            if (st != null && st.getLastRound() != null) {
-                int ts = st.getLastRound().getTimestamp();
-                String val = st.getLastRound().getValue();
-                // Only consider it if ts>0 and the value is non-empty
-                if (ts > bestTs && ts > 0 && val != null && !val.isEmpty()) {
-                    bestTs = ts;
-                    bestVal = val;
+            boolean hasVal = false;
+            Set<Tuple> ws = st.getWriteSet();
+            synchronized (ws) {
+                for (Tuple t : ws) {
+                    if (val.equals(t.getValue())) {
+                        hasVal = true;
+                        break; // only need to see if val appears once
+                    }
                 }
             }
+            if (hasVal) {
+                count++;
+            }
+        }
+        // If it meets the f+1 condition, see if it's the largest ts so far
+        if (count >= (f + 1) && ts > bestTs) {
+            bestTs = ts;
+            bestVal = val;
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // 3) If still none found, fallback to the leader's value
+    // ----------------------------------------------------------------
+    if (bestVal == null) {
+        for (Message m : collectedStates) {
+            if (m.getSenderId() == DepChainConfig.LEADER) {
+                State leaderSt = State.fromStr(m.getPayload());
+                if (leaderSt != null && leaderSt.getLastRound() != null) {
+                    bestVal = leaderSt.getLastRound().getValue();
+                    break;
+                }
+            }
+        }
+        System.out.println("No (ts, val) met the f+1 condition. Fallback to leader's: " + bestVal);
+    }
+
+    // ----------------------------------------------------------------
+    // 4) If bestVal is still non-empty, do final broadcast "WRITE###(ts,val)"
+    // ----------------------------------------------------------------
+    if (bestVal != null && !bestVal.isEmpty()) {
+        int currentEpoch = serverState.getEpoch();  // an integer
+        Tuple newTuple = new Tuple(currentEpoch + 1, bestVal);
+        final String chosenVal = bestVal;
+
+        // (Optional) remove old versions of bestVal from local writeSet
+        Set<Tuple> ws = serverState.getState().getWriteSet();
+        synchronized (ws) {
+            ws.removeIf(t -> t.getValue().equals(chosenVal));
         }
 
-        if(bestVal != null){
-            for(int i = 0; i <= bestTs; i++){
-                int appearances=0;
-                for( State st: allStates){
-                    Set<Tuple> ws = st.getWriteSet();
-                    for(Tuple tuple: ws){
-                        if(tuple.getValue().equals(bestVal) && tuple.getTimestamp() == i)
-                            appearances++;
-                    }
-                }
-                if(appearances <= (DepChainConfig.FAIL_BOUND+1))
-                    bestVal = null;
-            }
-        }
-    
-        // 2) If we didn't find any valid state with ts>0, and appearing in f+1 writesets fallback to the leader's value
-        if (bestVal == null) {
-            for (Message m : collectedStates) {
-                if (m.getSenderId() == DepChainConfig.LEADER) {
-                    State st = State.fromStr(m.getPayload());
-                    if (st != null && st.getLastRound() != null) {
-                        bestVal = st.getLastRound().getValue();
-                        break;
-                    }
-                }
-            }
-        }
-        System.out.println("Bestval: " + bestVal);
-    
-        // 3) If we still have a value, broadcast (epoch, bestVal)
-        if (bestVal != null) {
-            int currentEpoch = serverState.getEpoch();  // an integer
-            Tuple tuple = new Tuple(currentEpoch + 1, bestVal);
-            this.serverState.getState().addToWriteSet(tuple);
-            broadcast("WRITE###" + tuple);
-            System.out.println(
-                "Process " + serverState.getConfig().selfId
-                + " broadcast WRITE with (epoch=" + currentEpoch + ", val=" + bestVal + ")"
-            );
-        }
-    };     
+        serverState.getState().addToWriteSet(newTuple);
+
+        broadcast("WRITE###" + newTuple);
+        System.out.println("Process " + serverState.getConfig().selfId
+            + " broadcast WRITE with (epoch=" + currentEpoch
+            + ", val=" + bestVal + ")");
+    } else {
+        System.out.println("No suitable bestVal after fallback. Skipping WRITE.");
+    }
+};
 
     private void watchWrittenMessages() {
         while (running.get()) {

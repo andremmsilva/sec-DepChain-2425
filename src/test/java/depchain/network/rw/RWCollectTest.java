@@ -1,19 +1,23 @@
 package depchain.network.rw;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
 import depchain.config.DepChainConfig;
 import depchain.consensus.cc.CCCollectedEvent;
 import depchain.events.EventBus;
 import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLSendEvent;
-import depchain.network.apl.AuthenticatedPerfectLink;
-import org.junit.jupiter.api.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Tests the onCCCollected event -> verify we broadcast 'WRITE###...'.
@@ -29,8 +33,8 @@ public class RWCollectTest {
     @BeforeEach
     void setUp() throws InterruptedException {
         leaderConfig = new DepChainConfig(0); // leader
-        leaderBus = new EventBus(leaderConfig);
-        leaderState = new DepChainState(leaderConfig, new ArrayList<AuthenticatedPerfectLink>());
+        leaderBus = leaderConfig.eventBus;
+        leaderState = new DepChainState(leaderConfig, new ArrayList<>());
         leaderRW = new ReadWrite(leaderState);
 
         Thread.sleep(200);
@@ -39,7 +43,7 @@ public class RWCollectTest {
     @AfterEach
     void tearDown() {
         leaderRW.close();
-        leaderBus.shutdown();
+        leaderState.shutdown();
     }
 
     @Test

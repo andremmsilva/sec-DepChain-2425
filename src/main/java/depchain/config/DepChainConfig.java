@@ -36,7 +36,7 @@ public class DepChainConfig {
             this.selfId = myId;
             this.privateKey =
                     CryptoUtils.loadPrivateKey(makeKeyFileName("/src/resources/keys/private_key_" + selfId + ".pem"));
-            this.eventBus = new EventBus(this);
+            this.eventBus = new EventBus();
             this.socketManager = new SocketManager(this);
         } catch (IllegalArgumentException | SocketException e) {
             throw new RuntimeException(e);

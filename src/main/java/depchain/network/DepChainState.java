@@ -33,5 +33,13 @@ public class DepChainState {
     public State getState(){
         return state;
     }
+
+    public void shutdown() {
+        links.forEach(link -> {
+            link.close();
+        });
+
+        config.eventBus.shutdown();
+    }
     
 }

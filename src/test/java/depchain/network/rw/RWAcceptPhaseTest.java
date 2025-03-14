@@ -1,18 +1,20 @@
 package depchain.network.rw;
 
+import java.util.ArrayList;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
 import depchain.config.DepChainConfig;
 import depchain.events.EventBus;
 import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLDeliverEvent;
-import depchain.network.apl.AuthenticatedPerfectLink;
-
-import org.junit.jupiter.api.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Tests the "ACCEPT###" logic:
@@ -31,16 +33,16 @@ public class RWAcceptPhaseTest {
     @BeforeEach
     void setUp() throws InterruptedException {
         leaderConfig = new DepChainConfig(0);
-        leaderBus = new EventBus(leaderConfig);
-        leaderState = new DepChainState(leaderConfig, new ArrayList<AuthenticatedPerfectLink>());
+        leaderBus = leaderConfig.eventBus;
+        leaderState = new DepChainState(leaderConfig, new ArrayList<>());
         leaderRW = new ReadWrite(leaderState);
         Thread.sleep(200);
     }
 
     @AfterEach
     void tearDown() {
+        leaderState.shutdown();
         leaderRW.close();
-        leaderBus.shutdown();
     }
 
     @Test

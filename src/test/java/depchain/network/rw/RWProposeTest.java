@@ -1,18 +1,22 @@
 package depchain.network.rw;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
 import depchain.config.DepChainConfig;
 import depchain.events.EventBus;
 import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.APLSendEvent;
-import depchain.network.apl.AuthenticatedPerfectLink;
-import org.junit.jupiter.api.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Tests the ProposeEvent handling:
@@ -31,14 +35,14 @@ public class RWProposeTest {
     void setUp() throws InterruptedException {
         // Leader
         leaderConfig = new DepChainConfig(0);
-        leaderBus = new EventBus(leaderConfig);
-        leaderState = new DepChainState(leaderConfig, new ArrayList<AuthenticatedPerfectLink>());
+        leaderBus = leaderConfig.eventBus;
+        leaderState = new DepChainState(leaderConfig, new ArrayList<>());
         leaderRW = new ReadWrite(leaderState);
 
         // Non-leader
         nonLeaderConfig = new DepChainConfig(1);
-        nonLeaderBus = new EventBus(nonLeaderConfig);
-        nonLeaderState = new DepChainState(nonLeaderConfig, new ArrayList<AuthenticatedPerfectLink>());
+        nonLeaderBus = nonLeaderConfig.eventBus;
+        nonLeaderState = new DepChainState(nonLeaderConfig, new ArrayList<>());
         nonLeaderRW = new ReadWrite(nonLeaderState);
 
         Thread.sleep(200);
@@ -48,8 +52,8 @@ public class RWProposeTest {
     void tearDown() {
         leaderRW.close();
         nonLeaderRW.close();
-        leaderBus.shutdown();
-        nonLeaderBus.shutdown();
+        leaderState.shutdown();
+        nonLeaderState.shutdown();
     }
 
     @Test

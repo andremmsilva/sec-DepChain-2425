@@ -2,6 +2,7 @@ package depchain.classes;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class State {
@@ -30,7 +31,8 @@ public class State {
         // Extract writeset (last part after "|")
         Set<Tuple> writeSet = new HashSet<>();
         if (parts[1].length() > 2) { //Size of "{}"
-            String[] writesetEntries = parts[1].split(";");
+            String writesetStr = parts[1].replaceAll("[\\{\\}]", "");
+            String[] writesetEntries = writesetStr.split(";");
             for (String entry : writesetEntries) {
                 Tuple t = Tuple.fromStr(entry);
                 if (t != null) {
@@ -88,4 +90,19 @@ public class State {
         return sb.toString();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true; // Same object reference
+        if (obj == null || getClass() != obj.getClass())
+            return false; // Check null and class type
+
+        State state = (State) obj;
+        return last_round.equals(state.last_round) && writeset.equals(state.writeset);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(last_round, writeset);
+    }
 }

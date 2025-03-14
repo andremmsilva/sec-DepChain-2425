@@ -1,21 +1,21 @@
 package depchain.events;
 
-import depchain.config.DepChainConfig;
-import depchain.network.fll.FairLossLink;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import org.junit.jupiter.api.AfterAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import depchain.config.DepChainConfig;
+import depchain.network.fll.FairLossLink;
 
 public class EventTest {
     private static final DepChainConfig config = new DepChainConfig(0);
-    private static final EventBus eventBus = new EventBus(config);
+    private static final EventBus eventBus = new EventBus();
     // Only here so that fll.close() can be called - and the socket can be reused for another test
     private static FairLossLink fll;
 

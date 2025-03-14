@@ -38,7 +38,7 @@ public class RWSendCCInput {
     void setUp() throws InterruptedException {
         // Create ONE process with selfId=1 (non-leader)
         config = new DepChainConfig(1);
-        eventBus = new EventBus(config);
+        eventBus = config.eventBus;
         state = new DepChainState(config, new ArrayList<>());
 
         // Create the ReadWrite instance for this single process
