@@ -1,9 +1,18 @@
 package depchain.network.rw;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import depchain.classes.State;
@@ -22,23 +31,36 @@ public class ReadWrite {
     // For demonstration we’ll keep track of which value each process has “written” or “accepted.”
     private final String[] written = new String[DepChainConfig.PROCESSES];
     private final String[] accepted = new String[DepChainConfig.PROCESSES];
+    // For concurrency control in watchers
+    private final Lock lock = new ReentrantLock();
+    private final Condition newWrite = lock.newCondition();
+    private final Condition newAccept = lock.newCondition();
+    private final AtomicBoolean running = new AtomicBoolean(true);
+
+    // We'll run two watcher loops (one for write, one for accept)
+    private final ExecutorService executor = Executors.newFixedThreadPool(2);
+
 
     private final EventBus eventBus;
     
     public ReadWrite(DepChainState serverState) {
         this.serverState = serverState;
         this.eventBus = serverState.getConfig().eventBus;
-
+    
         // Initialize local arrays
         for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
             written[i] = null;
             accepted[i] = null;
         }
-
-        // Register the event handlers we need
+    
+        // Register event handlers
         this.eventBus.register(ProposeEvent.class, onProposal);
         this.eventBus.register(APLDeliverEvent.class, onAPLDelivery);
         this.eventBus.register(CCCollectedEvent.class, onCCCollected);
+    
+        // Start our watcher loops
+        this.executor.submit(this::watchWrittenMessages);
+        this.executor.submit(this::watchAcceptedMessages);
     }
 
     /**
@@ -78,6 +100,32 @@ public class ReadWrite {
         // Example: if we receive "[READ]" from the leader, we respond by sending "STATE–..."
         if ("READ".equals(payload) && sender == DepChainConfig.LEADER) {
             sendStateToConditionalCollect();
+        }
+        else if (payload.startsWith("WRITE###")) {
+            String v = payload.substring("WRITE###".length());
+    
+            lock.lock();
+            try {
+                written[sender] = v;
+                // signal the write watcher
+                newWrite.signal();
+            } finally {
+                lock.unlock();
+            }
+        }
+    
+        // If the leader (or anyone) broadcasts "ACCEPT###v", store it and signal the watcher
+        else if (payload.startsWith("ACCEPT###")) {
+            String v = payload.substring("ACCEPT###".length());
+    
+            lock.lock();
+            try {
+                accepted[sender] = v;
+                // signal the accept watcher
+                newAccept.signal();
+            } finally {
+                lock.unlock();
+            }
         }
     };
 
@@ -166,6 +214,112 @@ public class ReadWrite {
         }
     };     
 
+    private void watchWrittenMessages() {
+        while (running.get()) {
+            lock.lock();
+            try {
+                // Wait until we have at least one "WRITE" change
+                newWrite.await();  // or do a while-check if needed
+
+                // Now that we woke up, scan for a value v that has a majority
+                checkWrittenQuorum();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Interrupted watchWrittenMessages");
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+
+    /**
+     * This checks if any value v in 'written[]' has more than (n+f)/2 processes.
+     * If so, we broadcast "ACCEPT###v" and reset 'written[]'.
+     */
+    private void checkWrittenQuorum() {
+        int n = DepChainConfig.PROCESSES;
+        int f = DepChainConfig.FAIL_BOUND;
+
+        // Count how many times each v appears in 'written[]'
+        // (We can use a map from string -> integer)
+        Map<String, Integer> counts = new HashMap<>();
+        for (int p = 0; p < n; p++) {
+            String v = written[p];
+            if (v != null) {
+                counts.put(v, counts.getOrDefault(v, 0) + 1);
+            }
+        }
+
+        // Find if any v has more than (n+f)/2
+        for (Map.Entry<String, Integer> e : counts.entrySet()) {
+            String v = e.getKey();
+            int c = e.getValue();
+            if (c > (n + f) / 2) {
+                // Quorum found => broadcast ACCEPT, reset written[]
+                Arrays.fill(written, null);
+
+                broadcast("ACCEPT###" + v);
+                System.out.println("Process " + serverState.getConfig().selfId
+                                + " broadcasting ACCEPT###" + v);
+                return; // Only pick one value, or break if you prefer
+            }
+        }
+    }
+
+    private void watchAcceptedMessages() {
+        while (running.get()) {
+            lock.lock();
+            try {
+                // Wait until we have at least one "ACCEPT" change
+                newAccept.await();
+    
+                // Check if some value has a majority in 'accepted[]'
+                checkAcceptedQuorum();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Interrupted watchAcceptedMessages");
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+    
+    /**
+     * If any value v appears in 'accepted[]' more than (n+f)/2 times, we decide it.
+     */
+    private void checkAcceptedQuorum() {
+        int n = DepChainConfig.PROCESSES;
+        int f = DepChainConfig.FAIL_BOUND;
+    
+        Map<String, Integer> counts = new HashMap<>();
+        for (int p = 0; p < n; p++) {
+            String v = accepted[p];
+            if (v != null) {
+                counts.put(v, counts.getOrDefault(v, 0) + 1);
+            }
+        }
+    
+        for (Map.Entry<String, Integer> e : counts.entrySet()) {
+            String v = e.getKey();
+            int c = e.getValue();
+            if (c > (n + f) / 2) {
+                // We decide v
+                Arrays.fill(accepted, null);
+    
+                decideValue(v);
+                return;
+            }
+        }
+    }
+    
+    private void decideValue(String v) {
+        System.out.println("Process " + serverState.getConfig().selfId
+                           + " DECIDES value: " + v);
+        // If you want, publish an event so other code can see we decided:
+        // eventBus.publish(new DecideEvent(v));
+    }
+    
+
     /**
      *  Convenience method: broadcast a message to all processes 
      *  using AuthenticatedPerfectLink (via the event bus).
@@ -182,8 +336,21 @@ public class ReadWrite {
      *  For example if you close or tear down your system.
      */
     public void close() {
+        // Stop watchers
+        running.set(false);
+        lock.lock();
+        try {
+            newWrite.signalAll();
+            newAccept.signalAll();
+        } finally {
+            lock.unlock();
+        }
+        executor.shutdownNow();
+    
+        // Unregister event handlers
         eventBus.unregister(ProposeEvent.class, onProposal);
         eventBus.unregister(APLDeliverEvent.class, onAPLDelivery);
         eventBus.unregister(CCCollectedEvent.class, onCCCollected);
     }
+    
 }
