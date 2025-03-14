@@ -31,15 +31,6 @@ mvn test
 
 The tests use JUnit5 and are written in the `src/test/java/depchain/**` directories.
 
-| **Test**                                      | **Checks That...**                  | **Expected Behavior**        |
-|-----------------------------------------------|-------------------------------------|------------------------------|
-| `testFairLossLinkMessageLoss()`               | **FLL drops messages randomly**     | Some messages are lost       |
-| `testFairLossLinkMessageDuplication()`        | **FLL may duplicate messages**      | Same message received twice  |
-| `testFairLossLinkMessageReordering()`         | **FLL may reorder messages**        | Messages arrive out of order |
-| `testStubbornLinkEnsuresDelivery()`           | **SL eventually delivers messages** | Message always arrives       |
-| `testAuthenticatedPerfectLinkNoDuplication()` | **APL delivers each message once**  | No duplicate messages        |
-| `testAuthenticatedPerfectLinkAuthenticity()`  | **APL rejects forged messages**     | Fake messages are ignored    |
-
 ## 📜 **Code Overview**
 
 The project's source code is contained within the `src/main/java/depchain/**` directories.
