@@ -37,8 +37,12 @@ public class ReadWrite {
     private final Condition newAccept = lock.newCondition();
     private final AtomicBoolean running = new AtomicBoolean(true);
 
+    private boolean readFlag = false;
+    private boolean collectedFlag = false;
+    
+
     // We'll run two watcher loops (one for write, one for accept)
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
 
     private final EventBus eventBus;
@@ -61,6 +65,7 @@ public class ReadWrite {
         // Start our watcher loops
         this.executor.submit(this::watchWrittenMessages);
         this.executor.submit(this::watchAcceptedMessages);
+        this.executor.submit(this::timer);
     }
 
     /**
@@ -97,6 +102,9 @@ public class ReadWrite {
         System.out.println("On ALPDeliverEvent on RW: " + msg.getPayload());
         String payload = msg.getPayload();
         int sender = msg.getSenderId();
+        if (sender == DepChainConfig.LEADER) {
+            this.readFlag = true;
+        }
 
         // Example: if we receive "[READ]" from the leader, we respond by sending "STATE-..."
         if ("READ".equals(payload) && sender == DepChainConfig.LEADER) {
@@ -157,7 +165,7 @@ public class ReadWrite {
         Message m = new Message(stateString, serverState.getConfig().selfId);
         // Feed it into the ConditionalCollect's input. 
         // (ConditionalCollect is listening for CCInputEvent.)
-        eventBus.publish(new CCInputEvent(m));  
+        eventBus.publish(new CCInputEvent(m));
     }
 
     /**
@@ -336,6 +344,21 @@ public class ReadWrite {
         }
     }
     
+    private synchronized void timer() {
+        while (true) {
+            try {
+                wait(60000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            if (!this.readFlag)
+                System.out.println("Should Change the leader");
+            this.readFlag = false;
+        }
+    }
+
+
     /**
      * If any value v appears in 'accepted[]' more than (n+f)/2 times, we decide it.
      */
