@@ -41,7 +41,7 @@ public class AuthenticatedPerfectLink {
         Message m = e.arg;
         lock.lock();
         if (this.receivedMessages.contains(m)) {
-//            System.out.println(this + " received duplicate " + m);
+//            //System.out.println(this + " received duplicate " + m);
             lock.unlock();
             return;
         }
@@ -52,13 +52,13 @@ public class AuthenticatedPerfectLink {
         if (!this.config.secretKeys.containsKey(m.getSenderId())) {
             String payload = m.getPayload();
             if (payload.startsWith("OK")) {
-                System.out.println(this + " received OK ");
+                //System.out.println(this + " received OK ");
                 lock.lock();
                 handShaken.signal();
                 lock.unlock();
                 return;
             } else if (payload.startsWith(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR)) {
-//                System.out.println(this + " received handshake " + m);
+//                //System.out.println(this + " received handshake " + m);
                 payload = m.getPayload().split(PAYLOAD_SEPARATOR)[1];
                 try {
                     byte[] decoded = CryptoUtils.decodeFromBase64(payload);
@@ -86,16 +86,16 @@ public class AuthenticatedPerfectLink {
                 }
             } else {
                 // Wait until our ok is sent (maybe some message arrived before the handshake)
-                System.out.println(this + " received message before handshake " + m);
-//                System.out.println(this.config.secretKeys);
+                //System.out.println(this + " received message before handshake " + m);
+//                //System.out.println(this.config.secretKeys);
                 try {
                     this.lock.lock();
                     while (!this.config.secretKeys.containsKey(m.getSenderId())) {
                         this.handShaken.await();
                     }
-                    System.out.println(this + " completed handshake");
+                    //System.out.println(this + " completed handshake");
                 } catch (InterruptedException ex) {
-                    System.out.println(this + " interrupted while waiting for handshake request.");
+                    //System.out.println(this + " interrupted while waiting for handshake request.");
                 } finally {
                     this.lock.unlock();
                 }
@@ -106,10 +106,10 @@ public class AuthenticatedPerfectLink {
 
         // Verify integrity and authenticity
         if (!CryptoUtils.verifyMAC(m.getPayload(), m.getMac(), this.config.secretKeys.get(m.getSenderId()))) {
-            System.out.println("\n" + this + " received invalid message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
+            //System.out.println("\n" + this + " received invalid message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
             return;
         }
-        System.out.println("\n" + this + " received message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
+        //System.out.println("\n" + this + " received message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
 
         this.config.eventBus.publish(new APLDeliverEvent(m));
     };
@@ -140,11 +140,11 @@ public class AuthenticatedPerfectLink {
                         this.config.getSelfPrivateKey()));
                 handshake.setPayload(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR + handshake.getPayload());
 
-                System.out.println(this + " is sending handshake to " + targetId);
+                //System.out.println(this + " is sending handshake to " + targetId);
                 this.config.eventBus.publish(new FLLSendEvent(handshake, targetId));
 
                 handShaken.await();
-                System.out.println(this + " completed handshake with " + targetId);
+                //System.out.println(this + " completed handshake with " + targetId);
                 this.config.secretKeys.put(targetId, k);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -158,7 +158,7 @@ public class AuthenticatedPerfectLink {
         m.setMac(mac);
 
         // And send it over the network
-        System.out.println("\n" + this + " is sending " + m.getPayload() + "\nto: " + targetId + "\nMAC: " /*+ CryptoUtils.encodeToBase64(m.getMac()) + "\n"*/);
+        //System.out.println("\n" + this + " is sending " + m.getPayload() + "\nto: " + targetId + "\nMAC: " /*+ CryptoUtils.encodeToBase64(m.getMac()) + "\n"*/);
         this.config.eventBus.publish(new SLSendEvent(m, targetId));
     }
 

@@ -124,7 +124,6 @@ public class ReadWrite {
                 written[sender] = v;
                 // Wake up BOTH watchers
                 newWrite.signalAll();
-                newAccept.signalAll();  // <--- added
             } finally {
                 lock.unlock();
             }
@@ -142,7 +141,6 @@ public class ReadWrite {
                 accepted[sender] = v;
                 // Wake up BOTH watchers
                 newAccept.signalAll();
-                newWrite.signalAll();  // <--- added
             } finally {
                 lock.unlock();
             }
@@ -150,8 +148,8 @@ public class ReadWrite {
         
 
         else if (payload.startsWith("COLLECTED###")) {
-            String v = payload.substring("SEND###".length());
-            System.out.println("Got SEND Message: " + v);
+            String v = payload.substring("COLLECTED###".length());
+            System.out.println("Got Collected Message: " + v);
 
         }
     };
@@ -285,6 +283,7 @@ public class ReadWrite {
                 // Wait until we have at least one "WRITE" change
                 newWrite.await();  // or do a while-check if needed
 
+
                 // Now that we woke up, scan for a value v that has a majority
                 checkWrittenQuorum();
             } catch (InterruptedException e) {
@@ -313,6 +312,8 @@ public class ReadWrite {
                 counts.put(v, counts.getOrDefault(v, 0) + 1);
             }
         }
+
+        System.out.println("checking written counts: " + counts.toString());
 
         // Find if any v has more than (n+f)/2
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
@@ -346,21 +347,6 @@ public class ReadWrite {
             }
         }
     }
-    
-    private synchronized void timer() {
-        while (true) {
-            try {
-                wait(60000);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            if (!this.readFlag)
-                System.out.println("Should Change the leader");
-            this.readFlag = false;
-        }
-    }
-
 
     /**
      * If any value v appears in 'accepted[]' more than (n+f)/2 times, we decide it.
@@ -379,7 +365,6 @@ public class ReadWrite {
         }
 
         System.out.println("checking accepted counts: " + counts.toString());
-        System.out.println("checking accepted list: " + counts.toString());    
 
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
             String v = e.getKey();
@@ -391,6 +376,20 @@ public class ReadWrite {
                 decideValue(v);
                 return;
             }
+        }
+    }
+    
+    private synchronized void timer() {
+        while (true) {
+            try {
+                wait(60000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            if (!this.readFlag)
+                System.out.println("Should Change the leader");
+            this.readFlag = false;
         }
     }
     
