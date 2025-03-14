@@ -38,7 +38,6 @@ public class ReadWrite {
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     private boolean readFlag = false;
-    private boolean collectedFlag = false;
     
 
     // We'll run two watcher loops (one for write, one for accept)
@@ -105,6 +104,10 @@ public class ReadWrite {
         if (sender == DepChainConfig.LEADER) {
             this.readFlag = true;
         }
+        if (payload.startsWith("TRANSACTION###")) {
+
+        }
+
 
         // Example: if we receive "[READ]" from the leader, we respond by sending "STATE-..."
         if ("READ".equals(payload) && sender == DepChainConfig.LEADER) {
@@ -395,9 +398,8 @@ public class ReadWrite {
         System.out.println("Process " + serverState.getConfig().selfId
                            + " DECIDES value: " + v);
         this.serverState.getState().setLastRound(new Tuple(this.serverState.getEpoch(), v));
-        //eventBus.publish(new TransactionConfirmedEvent(v, success));
-        // If you want, publish an event so other code can see we decided:
-        // eventBus.publish(new DecideEvent(v));
+        Message message = new Message("CONFIRMED###" + v, DepChainConfig.LEADER);
+        eventBus.publish(new APLSendEvent(message,10 ));
     }
     
 

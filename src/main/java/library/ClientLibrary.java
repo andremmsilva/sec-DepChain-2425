@@ -21,32 +21,38 @@ public class ClientLibrary {
         this.eventBus = config.eventBus;
 
         // Register listener for transaction confirmations
-        // ✅ Listen for transaction confirmation events
-        this.eventBus.register(TransactionConfirmedEvent.class, onTransactionConfirmed);
+        this.eventBus.register(APLDeliverEvent.class, onTransactionResponse);
     }
 
     public CompletableFuture<Boolean> appendTransaction(String transactionName) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         pendingTransactions.put(transactionName, future);
-        Message transaction = new Message(transactionName, config.getSelfId());
+        Message transaction = new Message("TRANSACTION###" + transactionName, config.getSelfId());
         // ✅ Publishes event (instead of sending network message)
-        eventBus.publish(new ProposeEvent(transaction));
+        eventBus.publish(new APLSendEvent(transaction, DepChainConfig.LEADER));
 
         return future;
     }
 
 
-    private final Consumer<TransactionConfirmedEvent> onTransactionConfirmed = (event) -> {
-        String transactionName = event.getTransactionId();
-        boolean success = event.isSuccess();
+    private final Consumer<APLDeliverEvent> onTransactionResponse = (event) -> {
+        Message msg = event.arg;
+        String payload = msg.getPayload();
 
-        if (pendingTransactions.containsKey(transactionName)) {
-            pendingTransactions.get(transactionName).complete(success); // Mark as successful
-            pendingTransactions.remove(transactionName);
+        // ✅ Ensure the message is a transaction confirmation
+        if (payload.startsWith("CONFIRMED###") || payload.startsWith("FAILED###")) {
+            String transactionName = payload.substring(payload.indexOf("-") + 1);
+            boolean success = payload.startsWith("CONFIRMED");
+
+            // ✅ If the transaction was pending, complete it with success/failure
+            if (pendingTransactions.containsKey(transactionName)) {
+                pendingTransactions.get(transactionName).complete(success);
+                pendingTransactions.remove(transactionName);
+            }
         }
     };
 
     public void close() {
-        eventBus.unregister(TransactionConfirmedEvent.class, onTransactionConfirmed);
+        eventBus.unregister(APLDeliverEvent.class, onTransactionResponse);
     }
 }
