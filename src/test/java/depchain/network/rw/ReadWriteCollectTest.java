@@ -52,7 +52,11 @@ public class ReadWriteCollectTest {
 
         // Simulate a CCCollectedEvent with some states
         List<Message> states = new ArrayList<>();
-        states.add(new Message("2|hello|(2,foo)", 2));
+        states.add(new Message("(0,x)|{}", 2));
+        states.add(new Message("(0,y)|{}", 1));
+        states.add(new Message("(0,w)|{}", 3));
+        states.add(new Message("(0,z)|{}", 0));
+        
 
         leaderConfig.eventBus.publish(new CCCollectedEvent(states));
         Thread.sleep(300);

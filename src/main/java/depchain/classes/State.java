@@ -20,19 +20,16 @@ public class State {
         }
 
         String[] parts = messageContent.split("\\|");
-        if (parts.length != 3) {
+        if (parts.length != 2) {
             System.err.println("ConvertMessageToState: malformed state message - " + messageContent);
             return null;
         }
-
-        int lastRoundTimestamp = Integer.parseInt(parts[0].trim());
-        String lastRoundValue = parts[1].trim();
-        Tuple lastRound = new Tuple(lastRoundTimestamp, lastRoundValue);
+        Tuple lastRound = Tuple.fromStr(parts[0]);   
 
         // Extract writeset (last part after "|")
         Set<Tuple> writeSet = new HashSet<>();
-        if (!parts[2].isEmpty()) {
-            String[] writesetEntries = parts[2].split(";");
+        if (parts[1].length() > 2) { //Size of "{}"
+            String[] writesetEntries = parts[1].split(";");
             for (String entry : writesetEntries) {
                 Tuple t = Tuple.fromStr(entry);
                 if (t != null) {
@@ -67,22 +64,27 @@ public class State {
 
     @Override
     public String toString() {
-        return String.valueOf(last_round.getTimestamp()) + '|' + last_round.getValue() + '|' + writeSetToString();
+        return String.valueOf(last_round.toString() + '|' + writeSetToString());
     }
 
-    public String writeSetToString() {
-        StringBuilder result = new StringBuilder();
+    private String writeSetToString() {
+        if (writeset.isEmpty()) {
+            return "{}";  // just empty braces
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
         synchronized (writeset) {
+            boolean first = true;
             for (Tuple t : writeset) {
-                result.append(t.toString());
-                result.append(";");
+                if (!first) {
+                    sb.append(";");
+                }
+                sb.append(t.toString()); // e.g. (2,foo)
+                first = false;
             }
         }
-
-        if (result.toString().equals(""))
-            return "";
-
-        return result.toString().substring(0, result.length() - 1);
+        sb.append("}");
+        return sb.toString();
     }
 
 }

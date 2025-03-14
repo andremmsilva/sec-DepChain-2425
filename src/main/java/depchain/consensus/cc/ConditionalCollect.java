@@ -34,7 +34,9 @@ public class ConditionalCollect {
     private final AtomicBoolean running = new AtomicBoolean(true);
     private Predicate<List<Message>> outputPredicate;
     private DepChainConfig config;
+    
     private final Consumer<CCInputEvent> onInput = (event) -> {
+        System.out.println("On CCInputEvent on Condicional Collect " + event.arg.toString());
         // Send to leader
         Message m = event.arg;
         byte[] signature = CryptoUtils.signMessage(m.getPayload(), config.getSelfPrivateKey());
@@ -45,6 +47,7 @@ public class ConditionalCollect {
     };
 
     private final Consumer<APLDeliverEvent> onDeliver = (event) -> {
+        System.out.println("ON APLDeliverEvent on CondicionalCollect " + event.arg.toString());
         Message m = event.arg;
         String payload = m.getPayload();
         

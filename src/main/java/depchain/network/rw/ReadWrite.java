@@ -67,6 +67,7 @@ public class ReadWrite {
      *  Handle the “bep Propose | v” event. Only the leader should act here.
      */
     private final Consumer<ProposeEvent> onProposal = (event) -> {
+        System.out.println("On ProposeEvent on RW Class" + event.arg.toString());
         String proposedValue = event.arg.getPayload(); 
         int selfId = serverState.getConfig().selfId;
 
@@ -93,6 +94,7 @@ public class ReadWrite {
      *  or if the leader eventually sends "WRITE–...", we handle that, etc.
      */
     private final Consumer<APLDeliverEvent> onAPLDelivery = (event) -> {
+        System.out.println("On ALPDeliverEvent on RW Class " + event.arg.toString());
         Message msg = event.arg;
         String payload = msg.getPayload();
         int sender = msg.getSenderId();
@@ -150,6 +152,7 @@ public class ReadWrite {
      *  pick a final value to write, and then broadcast a "WRITE–value".
      */
     private final Consumer<CCCollectedEvent> onCCCollected = (event) -> {
+        System.out.println("On CCCollectedEvent RW class " + event.arg.toString());
         List<Message> collectedStates = event.arg;
         List<State> allStates = new ArrayList<>();
 
@@ -157,6 +160,8 @@ public class ReadWrite {
             State st = State.fromStr(m.getPayload());
             allStates.add(st);
         }
+
+        System.out.println(allStates.toString());
     
         // We'll track the best (ts, val) we see among states with ts > 0
         int bestTs = 0; 
@@ -174,6 +179,7 @@ public class ReadWrite {
                 }
             }
         }
+
         if(bestVal != null){
             for(int i = 0; i <= bestTs; i++){
                 int appearances=0;
@@ -201,6 +207,7 @@ public class ReadWrite {
                 }
             }
         }
+        System.out.println("Bestval: " + bestVal);
     
         // 3) If we still have a value, broadcast (epoch, bestVal)
         if (bestVal != null) {
