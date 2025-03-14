@@ -49,9 +49,11 @@ public class ReadWriteAcceptPhaseTest {
         // For a quorum, we assume at least 2 identical "ACCEPT###myVal" from different senders
         Message a1 = new Message("ACCEPT###myVal", 1);
         Message a2 = new Message("ACCEPT###myVal", 2);
+        Message a3 = new Message("ACCEPT###myVal", 3);
 
         leaderBus.publish(new APLDeliverEvent(a1));
         leaderBus.publish(new APLDeliverEvent(a2));
+        leaderBus.publish(new APLDeliverEvent(a3));
 
         Thread.sleep(500);
 

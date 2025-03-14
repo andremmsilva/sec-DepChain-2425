@@ -101,10 +101,14 @@ public class ReadWrite {
 
         // Example: if we receive "[READ]" from the leader, we respond by sending "STATE–..."
         if ("READ".equals(payload) && sender == DepChainConfig.LEADER) {
+            System.out.println("Got Read Message");
             sendStateToConditionalCollect();
         }
         else if (payload.startsWith("WRITE###")) {
             String v = payload.substring("WRITE###".length());
+            System.out.println("Got Write Message" + v.toString());
+
+            System.out.println("On Write parsing parsed string: " + v + "\tFrom: " + Integer.toString(sender));
     
             lock.lock();
             try {
@@ -119,6 +123,7 @@ public class ReadWrite {
         // If the leader (or anyone) broadcasts "ACCEPT###v", store it and signal the watcher
         else if (payload.startsWith("ACCEPT###")) {
             String v = payload.substring("ACCEPT###".length());
+            System.out.println("Got accept Message" + v.toString());
     
             lock.lock();
             try {
@@ -213,6 +218,7 @@ public class ReadWrite {
         if (bestVal != null) {
             int currentEpoch = serverState.getEpoch();  // an integer
             Tuple tuple = new Tuple(currentEpoch + 1, bestVal);
+            this.serverState.getState().addToWriteSet(tuple);
             broadcast("WRITE###" + tuple);
             System.out.println(
                 "Process " + serverState.getConfig().selfId
@@ -264,8 +270,7 @@ public class ReadWrite {
             if (c > (n + f) / 2) {
                 // Quorum found => broadcast ACCEPT, reset written[]
                 Arrays.fill(written, null);
-
-                broadcast("ACCEPT" + v);
+                broadcast("ACCEPT###" + v);
                 System.out.println("Process " + serverState.getConfig().selfId
                                 + " broadcasting ACCEPT###" + v);
                 return; // Only pick one value, or break if you prefer
@@ -299,13 +304,17 @@ public class ReadWrite {
         int f = DepChainConfig.FAIL_BOUND;
     
         Map<String, Integer> counts = new HashMap<>();
+        
         for (int p = 0; p < n; p++) {
             String v = accepted[p];
             if (v != null) {
                 counts.put(v, counts.getOrDefault(v, 0) + 1);
             }
         }
-    
+
+        System.out.println("checking accepted counts: " + counts.toString());
+        System.out.println("checking accepted list: " + counts.toString());    
+
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
             String v = e.getKey();
             int c = e.getValue();
@@ -334,6 +343,7 @@ public class ReadWrite {
      *  using AuthenticatedPerfectLink (via the event bus).
      */
     private void broadcast(String msgPayload) {
+        System.out.println("Broadcasting: " + msgPayload);
         for (int targetId = 0; targetId < DepChainConfig.PROCESSES; targetId++) {
             Message m = new Message(msgPayload, serverState.getConfig().selfId);
             eventBus.publish(new APLSendEvent(m, targetId));
