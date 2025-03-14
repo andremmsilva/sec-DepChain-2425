@@ -28,6 +28,7 @@ public class AuthenticatedPerfectLink {
     private final Lock lock = new ReentrantLock();
     private final Condition handShaken = lock.newCondition();
     private DepChainConfig config;
+    
     private final Consumer<APLSendEvent> sendHandler = e -> {
         try {
             this.sendMessage(e.arg, e.getTargetId());
