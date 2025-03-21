@@ -6,7 +6,7 @@ This repository implements the **DepChain**, a high-dependability blockchain sys
 
 ## ⚡ **Installation**
 
-This project requires **Java 11+** and **Maven**. Install dependencies and compile:
+This project requires **Java 21** and **Maven**. Install dependencies and compile:
 
 ```sh
 # Clone the repository
@@ -27,18 +27,11 @@ To verify that each layer functions correctly, run:
 mvn test
 ```
 
-### **✅ Test Suite Overview**
+## **✅ Test Suite Overview**
 
 The tests use JUnit5 and are written in the `src/test/java/depchain/**` directories.
 
-| **Test**                                      | **Checks That...**                  | **Expected Behavior**        |
-|-----------------------------------------------|-------------------------------------|------------------------------|
-| `testFairLossLinkMessageLoss()`               | **FLL drops messages randomly**     | Some messages are lost       |
-| `testFairLossLinkMessageDuplication()`        | **FLL may duplicate messages**      | Same message received twice  |
-| `testFairLossLinkMessageReordering()`         | **FLL may reorder messages**        | Messages arrive out of order |
-| `testStubbornLinkEnsuresDelivery()`           | **SL eventually delivers messages** | Message always arrives       |
-| `testAuthenticatedPerfectLinkNoDuplication()` | **APL delivers each message once**  | No duplicate messages        |
-| `testAuthenticatedPerfectLinkAuthenticity()`  | **APL rejects forged messages**     | Fake messages are ignored    |
+An overview of the suite can be found [here](./src/test/tests.md).
 
 ## 📜 **Code Overview**
 
@@ -46,7 +39,23 @@ The project's source code is contained within the `src/main/java/depchain/**` di
 
 Each subdirectory corresponds to one of the packages listed below:
 
+### **📂 `depchain.config` - Node Management and Global Configurations**
+
+### **📂 `depchain.events` - Event Management**
+
+#### 🔹 `Event.java`
+
+> Abstract Class describing "something happening". **Contains an argument (`arg`)of any type.**
+
+#### 🔹 `EventBus.java`
+
+> Manages the registration and unregistration of event consumers. Additionally, manages the delivery of events to these consumers asynchronously.
+
 ### **📂 `depchain.network` - Networking Stack**
+
+#### 🔹 `Message.java`
+
+> Represents a message exchanged across the network. **Contains senderId, payload and possibly a MAC and DS**.
 
 #### 🔹 `FairLossLink.java`
 
@@ -64,4 +73,4 @@ Each subdirectory corresponds to one of the packages listed below:
 
 #### 🔹 `CryptoUtils.java`
 
-> Provides **RSA digital signatures** for authentication.
+> Provides **RSA digital signatures and MACs** for authentication, as well as key generation.
