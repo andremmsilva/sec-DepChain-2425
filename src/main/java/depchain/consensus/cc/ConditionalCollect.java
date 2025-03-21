@@ -1,10 +1,12 @@
 package depchain.consensus.cc;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import depchain.config.DepChainConfig;
+import depchain.crypto.CryptoUtils;
+import depchain.network.Message;
+import depchain.network.apl.APLDeliverEvent;
+import depchain.network.apl.APLSendEvent;
+
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,18 +16,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import depchain.config.DepChainConfig;
-import depchain.crypto.CryptoUtils;
-import depchain.network.Message;
-import depchain.network.apl.APLDeliverEvent;
-import depchain.network.apl.APLSendEvent;
-import depchain.network.apl.AuthenticatedPerfectLink;
-
 public class ConditionalCollect {
     private static final String SEND_PREFIX = "SEND";
     private static final String COLLECTED_PREFIX = "COLLECTED";
     private static final String PAYLOAD_SEPARATOR = "###";
-    private final AuthenticatedPerfectLink apl;
     private final Map<Integer, Message> messages = Collections.synchronizedMap(new HashMap<>());
     private final AtomicBoolean collected = new AtomicBoolean(false);
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -34,32 +28,35 @@ public class ConditionalCollect {
     private final AtomicBoolean running = new AtomicBoolean(true);
     private Predicate<List<Message>> outputPredicate;
     private DepChainConfig config;
-    
+
     private final Consumer<CCInputEvent> onInput = (event) -> {
         // Send to leader
         Message m = event.arg;
         byte[] signature = CryptoUtils.signMessage(m.getPayload(), config.getSelfPrivateKey());
         m.setSignature(signature);
         m.setPayload(SEND_PREFIX + PAYLOAD_SEPARATOR + m.getPayload());
-        System.out.println(this + " onCCInput " + m.getPayload());
+        System.out.println(this + " onInput " + event.arg.getPayload());
         this.config.eventBus.publish(new APLSendEvent(m, DepChainConfig.LEADER));
     };
 
     private final Consumer<APLDeliverEvent> onDeliver = (event) -> {
-        //System.out.println("ON APLDeliverEvent on CondicionalCollect " + event.arg.getPayload());
         Message m = event.arg;
         String payload = m.getPayload();
-        
+
         if (payload.startsWith(SEND_PREFIX) && this.config.selfId.equals(DepChainConfig.LEADER)) {
             // Leader received SEND###...
+            System.out.println(this + " onAPLDeliver SEND " + event.arg.getPayload());
             payload = m.getPayload().split(SEND_PREFIX + PAYLOAD_SEPARATOR)[1];
-            if (CryptoUtils.verifySignature(payload, m.getSignature(), config.getPublicKey(m.getSenderId()))) {
-                messages.put(m.getSenderId(), new Message(payload, m.getSenderId(), m.getMac(), m.getSignature()));
+            if (CryptoUtils.verifySignature(payload, m.getSignature(),
+                    config.getPublicKey(m.getSenderId()))) {
+                messages.put(m.getSenderId(),
+                        new Message(payload, m.getSenderId(), m.getMac(), m.getSignature()));
                 lock.lock();
                 newMessage.signal();
                 lock.unlock();
             }
         } else if (payload.startsWith(COLLECTED_PREFIX) && m.getSenderId() == DepChainConfig.LEADER) {
+            System.out.println(this + " onAPLDeliver COLLECTED from " + event.arg.getSenderId());
             List<Message> receivedMsgs = new ArrayList<>();
             payload = m.getPayload().split(COLLECTED_PREFIX + PAYLOAD_SEPARATOR)[1];
             for (String s : payload.split(PAYLOAD_SEPARATOR)) {
@@ -71,14 +68,16 @@ public class ConditionalCollect {
 
                 receivedMsgs.add(mi);
             }
-            if (!this.collected.get() && receivedMsgs.size() >= DepChainConfig.PROCESSES - DepChainConfig.FAIL_BOUND && this.outputPredicate.test(receivedMsgs)) {
+            if (!this.collected.get() &&
+                    receivedMsgs.size() >= DepChainConfig.PROCESSES - DepChainConfig.FAIL_BOUND &&
+                    this.outputPredicate.test(receivedMsgs)) {
                 for (Message mj : receivedMsgs) {
                     if (!CryptoUtils.verifySignature(mj.getPayload(), mj.getSignature(),
                             config.getPublicKey(mj.getSenderId()))) {
                         System.err.println("CC onAPLDeliver could not verify signature - " + mj);
                         return;
                     }
-//                    System.out.println(mj);
+                    // System.out.println(mj);
                 }
 
                 this.collected.set(true);
@@ -87,9 +86,8 @@ public class ConditionalCollect {
         }
     };
 
-    public ConditionalCollect(DepChainConfig config, AuthenticatedPerfectLink apl, Predicate<List<Message>> outputPredicate) {
+    public ConditionalCollect(DepChainConfig config, Predicate<List<Message>> outputPredicate) {
         this.config = config;
-        this.apl = apl;
         this.outputPredicate = outputPredicate;
 
         this.config.eventBus.register(CCInputEvent.class, onInput);
@@ -106,7 +104,12 @@ public class ConditionalCollect {
                     this.newMessage.await();
                 }
 
-                if (this.messages.size() >= DepChainConfig.PROCESSES - DepChainConfig.FAIL_BOUND && outputPredicate.test(new ArrayList<>(this.messages.values()))) {
+                if (!running.get()) {
+                    break;
+                }
+
+                if (this.messages.size() >= DepChainConfig.PROCESSES - DepChainConfig.FAIL_BOUND &&
+                        outputPredicate.test(new ArrayList<>(this.messages.values()))) {
                     StringBuilder payload = new StringBuilder(COLLECTED_PREFIX + PAYLOAD_SEPARATOR);
                     for (Message m : this.messages.values()) {
                         payload.append(m);
@@ -115,13 +118,15 @@ public class ConditionalCollect {
 
                     Message m = new Message(payload.toString(), this.config.selfId);
                     for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-                        this.config.eventBus.publish(new APLSendEvent(m, i));
+                        System.out.println(this + " sending COLLECTED to " + i);
+                        this.config.eventBus.publish(new APLSendEvent(new Message(m), i));
                     }
                     this.messages.clear();
                 }
             } catch (InterruptedException e) {
                 System.out.println("CC interrupted while watching collected messages");
                 Thread.currentThread().interrupt();
+                break;
             } finally {
                 this.lock.unlock();
             }
@@ -131,10 +136,12 @@ public class ConditionalCollect {
     public void close() {
         this.running.set(false);
         this.lock.lock();
-        this.newMessage.signalAll();
-        this.lock.unlock();
-        this.executor.shutdownNow();
-        this.apl.close();
+        try {
+            this.newMessage.signalAll(); // Wake up the thread immediately
+        } finally {
+            this.lock.unlock();
+        }
+        this.executor.shutdownNow(); // Forcefully terminate the thread pool
 
         this.config.eventBus.unregister(CCInputEvent.class, onInput);
         this.config.eventBus.unregister(APLDeliverEvent.class, onDeliver);

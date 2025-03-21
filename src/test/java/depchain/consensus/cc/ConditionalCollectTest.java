@@ -1,20 +1,20 @@
 package depchain.consensus.cc;
 
+import depchain.config.DepChainConfig;
+import depchain.network.Message;
+import depchain.network.apl.AuthenticatedPerfectLink;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
-import depchain.config.DepChainConfig;
-import depchain.network.Message;
-import depchain.network.apl.AuthenticatedPerfectLink;
 
 public class ConditionalCollectTest {
     private final List<AuthenticatedPerfectLink> links = new ArrayList<>(DepChainConfig.PROCESSES);
@@ -35,24 +35,27 @@ public class ConditionalCollectTest {
         links.add(new AuthenticatedPerfectLink(configs.get(1)));
         links.add(new AuthenticatedPerfectLink(configs.get(2)));
         links.add(new AuthenticatedPerfectLink(configs.get(3)));
-        ccs.add(new ConditionalCollect(configs.get(0), links.get(0), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(1), links.get(1), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(2), links.get(2), mockPredicate));
-        ccs.add(new ConditionalCollect(configs.get(3), links.get(3), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(0), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(1), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(2), mockPredicate));
+        ccs.add(new ConditionalCollect(configs.get(3), mockPredicate));
         Thread.sleep(500);
     }
 
     @AfterEach
     public void afterEach() {
+        links.forEach(AuthenticatedPerfectLink::close);
         ccs.forEach(ConditionalCollect::close);
     }
 
     @Timeout(10)
     @Test
     public void testBaseLineConditionalCollect() throws InterruptedException {
+        System.out.println("testBaseLineConditionalCollect\n");
         CountDownLatch latch = new CountDownLatch(1);
         List<Message> messages = new ArrayList<>();
         configs.get(1).eventBus.register(CCCollectedEvent.class, e -> {
+            System.out.println("Received CCCollectedEvent");
             messages.addAll(e.arg);
             latch.countDown();
         });
@@ -72,12 +75,14 @@ public class ConditionalCollectTest {
     @Test
     @Timeout(10)
     public void testCollectsAllMessages() throws InterruptedException {
+        System.out.println("testCollectsAllMessages\n");
         // Here process 0 is the leader
         CountDownLatch latch = new CountDownLatch(1);
         final List<Message> collectedResult = new ArrayList<>();
 
         // Register a CCCollectedEvent consumer on one of the non-leader processes (say process 1)
         configs.get(1).eventBus.register(CCCollectedEvent.class, event -> {
+            System.out.println("Received CCCollectedEvent");
             collectedResult.addAll(event.arg);
             latch.countDown();
         });
