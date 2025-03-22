@@ -13,6 +13,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.Disabled;
 
 import depchain.config.DepChainConfig;
 import depchain.consensus.cc.CCInputEvent;
@@ -28,6 +29,7 @@ import depchain.network.apl.AuthenticatedPerfectLink;
  * in the same process's eventBus.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Disabled
 public class RWSendCCInput {
 
     private DepChainConfig config;

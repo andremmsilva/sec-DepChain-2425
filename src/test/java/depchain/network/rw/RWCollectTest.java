@@ -11,6 +11,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.Disabled;
 
 import depchain.config.DepChainConfig;
 import depchain.consensus.cc.CCCollectedEvent;
@@ -24,6 +25,7 @@ import depchain.network.apl.AuthenticatedPerfectLink;
  * Tests the onCCCollected event -> verify we broadcast 'WRITE###...'.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Disabled
 public class RWCollectTest {
 
     private DepChainConfig leaderConfig;

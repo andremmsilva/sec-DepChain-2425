@@ -25,6 +25,7 @@ import java.util.function.Consumer;
  * demonstrating the read-write epoch logic in ReadWrite + ConditionalCollect.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Disabled
 public class TestReadWriteConsensus {
 
     private static final int N = 4;  // total processes

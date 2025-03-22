@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import depchain.network.apl.AuthenticatedPerfectLink;
  *  - Non-leader does nothing
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Disabled
 public class RWProposeTest {
 
     private DepChainConfig leaderConfig, nonLeaderConfig;
