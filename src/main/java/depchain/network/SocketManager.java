@@ -10,8 +10,8 @@ public class SocketManager {
     private DatagramSocket socket;
 
     public SocketManager(DepChainConfig config) throws SocketException, IllegalArgumentException {
-        socket = new DatagramSocket(DepChainConfig.BASE_PORT + config.selfId);
-//        socket.setReuseAddress(true);
+        socket = new DatagramSocket(config.basePort + config.selfId);
+        socket.setReuseAddress(true);
     }
 
     public void close() throws IOException {

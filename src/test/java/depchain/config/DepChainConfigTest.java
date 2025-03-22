@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class DepChainConfigTest {
     @Test
     public void shouldLoadCorrectPublicKey() throws Exception {
-        DepChainConfig config = new DepChainConfig(0);
+        DepChainConfig config = new DepChainConfig(0, 0, "127.0.0.1");
 
         // Should have the correct id
         assertEquals(0, config.selfId);

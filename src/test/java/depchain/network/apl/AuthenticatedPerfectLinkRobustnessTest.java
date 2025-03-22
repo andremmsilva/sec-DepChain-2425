@@ -24,13 +24,14 @@ public class AuthenticatedPerfectLinkRobustnessTest {
     @BeforeEach
     public void setUp() {
         // Create a sender and three receivers
-        senderConfig = new DepChainConfig(0);
+        senderConfig = new DepChainConfig(0, 0, "127.0.0.1");
+        int basePort = senderConfig.getBasePort();
         sender = new AuthenticatedPerfectLink(senderConfig);
 
         receiverConfigs = new ArrayList<>();
         receivers = new ArrayList<>();
         for (int i = 1; i <= 3; i++) {
-            DepChainConfig config = new DepChainConfig(i);
+            DepChainConfig config = new DepChainConfig(i, basePort, "127.0.0.1");
             receiverConfigs.add(config);
             receivers.add(new AuthenticatedPerfectLink(config));
         }

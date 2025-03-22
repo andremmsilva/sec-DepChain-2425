@@ -14,7 +14,7 @@ import depchain.config.DepChainConfig;
 import depchain.network.fll.FairLossLink;
 
 public class EventTest {
-    private static final DepChainConfig config = new DepChainConfig(0);
+    private static final DepChainConfig config = new DepChainConfig(0, 0, "127.0.0.1");
     private static final EventBus eventBus = new EventBus();
     // Only here so that fll.close() can be called - and the socket can be reused for another test
     private static FairLossLink fll;

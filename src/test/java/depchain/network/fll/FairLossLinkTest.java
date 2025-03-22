@@ -2,10 +2,7 @@ package depchain.network.fll;
 
 import depchain.config.DepChainConfig;
 import depchain.network.Message;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,16 +15,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class FairLossLinkTest {
-    private static DepChainConfig receiverConfig;
-    private static DepChainConfig senderConfig;
-    private static FairLossLink sender;
-    private static FairLossLink receiver;
-    private static List<Message> receivedMessages;
+    private DepChainConfig receiverConfig;
+    private DepChainConfig senderConfig;
+    private FairLossLink sender;
+    private FairLossLink receiver;
+    private List<Message> receivedMessages;
 
-    @BeforeAll
-    static void setup() {
-        senderConfig = new DepChainConfig(0);
-        receiverConfig = new DepChainConfig(1);
+    @BeforeEach
+    void setup() {
+        senderConfig = new DepChainConfig(0, 0, "127.0.0.1");
+        receiverConfig = new DepChainConfig(1, senderConfig.getBasePort(), "127.0.0.1");
         sender = new FairLossLink(senderConfig);
         receiver = new FairLossLink(receiverConfig);
         receivedMessages = Collections.synchronizedList(new ArrayList<>());
@@ -38,14 +35,10 @@ public class FairLossLinkTest {
         }
     }
 
-    @AfterAll
-    static void tearDown() {
+    @AfterEach
+    void tearDown() {
         sender.close();
         receiver.close();
-    }
-
-    @AfterEach
-    void afterEach() {
         receivedMessages.clear();
     }
 
@@ -57,6 +50,7 @@ public class FairLossLinkTest {
             latch.countDown();
         };
 
+        System.out.println("Alive");
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);

@@ -25,8 +25,8 @@ public class StubbornLinkTest {
 
     @BeforeAll
     static void setup() {
-        senderConfig = new DepChainConfig(0);
-        receiverConfig = new DepChainConfig(1);
+        senderConfig = new DepChainConfig(0, 0, "127.0.0.1");
+        receiverConfig = new DepChainConfig(1, senderConfig.getBasePort(), "127.0.0.1");
         sender = new StubbornLink(senderConfig);
         receiver = new StubbornLink(receiverConfig);
         receivedMessages = new ArrayList<>();

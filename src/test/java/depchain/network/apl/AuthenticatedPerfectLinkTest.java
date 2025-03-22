@@ -31,9 +31,9 @@ public class AuthenticatedPerfectLinkTest {
 
     @BeforeEach
     public void beforeEach() {
-        senderConfig = new DepChainConfig(0);
+        senderConfig = new DepChainConfig(0, 0, "127.0.0.1");
         sender = new AuthenticatedPerfectLink(senderConfig);
-        receiverConfig = new DepChainConfig(1);
+        receiverConfig = new DepChainConfig(1, senderConfig.getBasePort(), "127.0.0.1");
         receiver = new AuthenticatedPerfectLink(receiverConfig);
         receivedMessages.clear();
     }
@@ -75,7 +75,7 @@ public class AuthenticatedPerfectLinkTest {
     @Test
     public void testMultiple() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(2);
-        DepChainConfig thirdPartyConfig = new DepChainConfig(2);
+        DepChainConfig thirdPartyConfig = new DepChainConfig(2, senderConfig.getBasePort(), "127.0.0.1");
         List<Message> thirdPartyReceivedMsgs = new ArrayList<>();
         AuthenticatedPerfectLink thirdParty = new AuthenticatedPerfectLink(thirdPartyConfig);
         Consumer<APLDeliverEvent> thirdPartyConsumer = event -> {
