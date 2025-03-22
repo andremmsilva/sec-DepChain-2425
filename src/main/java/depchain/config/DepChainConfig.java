@@ -18,7 +18,7 @@ public class DepChainConfig {
     public static final Integer FAIL_BOUND = 1;
     public static final Integer LEADER = 0;
     public static final String ADDRESS = "127.0.0.1";
-    public static final Integer BASE_PORT = 8080;
+    public static final Integer basePort = 8080;
 
     public final ArrayList<PublicKey> publicKeys = new ArrayList<>();
     public final ConcurrentMap<Integer, SecretKey> secretKeys = new ConcurrentHashMap<>();

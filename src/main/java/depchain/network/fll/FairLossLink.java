@@ -63,7 +63,7 @@ public class FairLossLink {
 
     public void sendMessage(Message m, int targetId) throws Exception {
         String destAddress = DepChainConfig.ADDRESS;
-        int destPort = DepChainConfig.BASE_PORT + targetId;
+        int destPort = DepChainConfig.basePort + targetId;
         DatagramPacket packet = new DatagramPacket(m.toString().getBytes(), m.toString().length(),
                 InetAddress.getByName(destAddress),
                 destPort);
