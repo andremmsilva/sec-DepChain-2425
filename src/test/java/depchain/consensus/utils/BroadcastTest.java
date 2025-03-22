@@ -26,10 +26,11 @@ public class BroadcastTest {
     @BeforeEach
     void setUp() {
         configs.clear();
-        configs.add(new DepChainConfig(0));
-        configs.add(new DepChainConfig(1));
-        configs.add(new DepChainConfig(2));
-        configs.add(new DepChainConfig(3));
+        links.clear();
+        configs.add(new DepChainConfig(0, 0, "127.0.0.1"));
+        configs.add(new DepChainConfig(1, configs.getFirst().getBasePort(), "127.0.0.1"));
+        configs.add(new DepChainConfig(2, configs.getFirst().getBasePort(), "127.0.0.1"));
+        configs.add(new DepChainConfig(3, configs.getFirst().getBasePort(), "127.0.0.1"));
         links.add(new AuthenticatedPerfectLink(configs.get(0)));
         links.add(new AuthenticatedPerfectLink(configs.get(1)));
         links.add(new AuthenticatedPerfectLink(configs.get(2)));

@@ -50,7 +50,6 @@ public class FairLossLinkTest {
             latch.countDown();
         };
 
-        System.out.println("Alive");
         receiverConfig.eventBus.register(FLLDeliverEvent.class, deliverHandler);
 
         Message message1 = new Message("Message 1", 0);

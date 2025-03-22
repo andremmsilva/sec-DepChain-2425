@@ -1,17 +1,5 @@
 package depchain.network.apl;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
-
-import javax.crypto.SecretKey;
-
 import depchain.config.DepChainConfig;
 import depchain.crypto.CryptoUtils;
 import depchain.network.Message;
@@ -20,146 +8,166 @@ import depchain.network.sl.SLDeliverEvent;
 import depchain.network.sl.SLSendEvent;
 import depchain.network.sl.StubbornLink;
 
+import javax.crypto.SecretKey;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+
 public class AuthenticatedPerfectLink {
     private static final String HANDSHAKE_PREFIX = "HS";
     private static final String PAYLOAD_SEPARATOR = "###";
+
     private final StubbornLink stubbornLink;
+    // Maintains per-peer connection state (handshake status + pending messages)
+    private final ConcurrentHashMap<Integer, PeerConnection> peerConnections = new ConcurrentHashMap<>();
+    // Used to detect duplicate messages if needed
     private final Set<Message> receivedMessages = Collections.synchronizedSet(new HashSet<>());
-    private final Lock lock = new ReentrantLock();
-    private final Condition handShaken = lock.newCondition();
     private DepChainConfig config;
-    
+    // Handler for outgoing messages
     private final Consumer<APLSendEvent> sendHandler = e -> {
         try {
-            this.sendMessage(e.arg, e.getTargetId());
+            sendMessage(e.arg, e.getTargetId());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     };
-    
+
+    // Handler for messages delivered from the lower-level link
     private final Consumer<SLDeliverEvent> slDeliverHandler = e -> {
         Message m = e.arg;
-        lock.lock();
-        if (this.receivedMessages.contains(m)) {
-//            //System.out.println(this + " received duplicate " + m);
-            lock.unlock();
-            return;
-        }
-        this.receivedMessages.add(m);
-        lock.unlock();
+        int senderId = m.getSenderId();
+        PeerConnection conn = peerConnections.computeIfAbsent(senderId, PeerConnection::new);
 
-        // We don't have a key with the sender, so it's most likely an exchange request
-        if (!this.config.secretKeys.containsKey(m.getSenderId())) {
-            String payload = m.getPayload();
-            if (payload.startsWith("OK")) {
-                //System.out.println(this + " received OK ");
-                lock.lock();
-                handShaken.signal();
-                lock.unlock();
+        conn.lock.lock();
+        try {
+            // Duplicate detection (if needed)
+            if (receivedMessages.contains(m)) {
                 return;
-            } else if (payload.startsWith(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR)) {
-//                //System.out.println(this + " received handshake " + m);
-                payload = m.getPayload().split(PAYLOAD_SEPARATOR)[1];
-                try {
-                    byte[] decoded = CryptoUtils.decodeFromBase64(payload);
-                    byte[] payloadBytes = CryptoUtils.decipherMessage(decoded, this.config.getSelfPrivateKey());
+            }
+            receivedMessages.add(m);
 
-                    // Verify signature, as no MAC is meant to be in this message
-                    if (CryptoUtils.verifySignature(payload, m.getSignature(),
-                            this.config.getPublicKey(m.getSenderId()))) {
-                        SecretKey k = CryptoUtils.secretKeyFromBytes(payloadBytes);
-                        this.lock.lock();
-                        this.config.secretKeys.put(m.getSenderId(), k);
-                        this.handShaken.signal();
-
-                        // Reply with an OK, authenticated with the new shared secret
-                        Message reply = new Message("OK", this.config.selfId);
-                        reply.setMac(CryptoUtils.computeMAC(reply.getPayload(),
-                                this.config.secretKeys.get(m.getSenderId())));
-                        this.config.eventBus.publish(new FLLSendEvent(reply, m.getSenderId()));
+            if (conn.sharedKey == null) {
+                // Handshake not complete yet.
+                if (m.getPayload().startsWith("OK")) {
+                    // This is a handshake reply.
+                    conn.sharedKey = conn.generatedKey; // complete our handshake
+                    config.secretKeys.put(senderId, conn.sharedKey);
+                    conn.handshakeComplete.signalAll();
+                    flushPendingMessages(conn);
+                    return;
+                } else if (m.getPayload().startsWith(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR)) {
+                    // Peer is initiating a handshake.
+                    String[] parts = m.getPayload().split(PAYLOAD_SEPARATOR, 2);
+                    if (parts.length < 2) return; // invalid handshake message
+                    String encodedPayload = parts[1];
+                    byte[] decoded = CryptoUtils.decodeFromBase64(encodedPayload);
+                    byte[] keyBytes = CryptoUtils.decipherMessage(decoded, config.getSelfPrivateKey());
+                    // Verify signature (no MAC on handshake)
+                    if (CryptoUtils.verifySignature(encodedPayload, m.getSignature(),
+                            config.getPublicKey(senderId))) {
+                        SecretKey sharedKey = CryptoUtils.secretKeyFromBytes(keyBytes);
+                        conn.sharedKey = sharedKey;
+                        config.secretKeys.put(senderId, sharedKey);
+                        conn.handshakeComplete.signalAll();
+                        // Reply with an OK message, authenticated with the new shared key.
+                        Message reply = new Message("OK", config.selfId);
+                        reply.setMac(CryptoUtils.computeMAC(reply.getPayload(), sharedKey));
+                        config.eventBus.publish(new FLLSendEvent(reply, senderId));
+                        flushPendingMessages(conn);
                     }
                     return;
-                } catch (NoSuchAlgorithmException | InvalidKeySpecException ex) {
-                    throw new RuntimeException(ex);
-                } finally {
-                    this.lock.unlock();
+                } else {
+                    // Not a handshake message—queue it until the handshake is complete.
+                    conn.pendingMessages.offer(m);
+                    return;
                 }
-            } else {
-                // Wait until our ok is sent (maybe some message arrived before the handshake)
-                //System.out.println(this + " received message before handshake " + m);
-//                //System.out.println(this.config.secretKeys);
-                try {
-                    this.lock.lock();
-                    while (!this.config.secretKeys.containsKey(m.getSenderId())) {
-                        this.handShaken.await();
-                    }
-                    //System.out.println(this + " completed handshake");
-                } catch (InterruptedException ex) {
-                    //System.out.println(this + " interrupted while waiting for handshake request.");
-                } finally {
-                    this.lock.unlock();
-                }
-
-                // Now, proceed with the execution, as the MAC verification will most likely work now
             }
-        }
 
-        // Verify integrity and authenticity
-        if (!CryptoUtils.verifyMAC(m.getPayload(), m.getMac(), this.config.secretKeys.get(m.getSenderId()))) {
-            //System.out.println("\n" + this + " received invalid message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
-            return;
+            // Handshake is complete; verify MAC before delivery.
+            if (!CryptoUtils.verifyMAC(m.getPayload(), m.getMac(), conn.sharedKey)) {
+                System.out.println(this + " received invalid message " + m.getPayload() + " from " + senderId);
+                return; // drop invalid message
+            }
+            config.eventBus.publish(new APLDeliverEvent(m));
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            conn.lock.unlock();
         }
-        //System.out.println("\n" + this + " received message " + m.getPayload() + "\nMAC: " + CryptoUtils.encodeToBase64(m.getMac()) + "\n");
-
-        this.config.eventBus.publish(new APLDeliverEvent(m));
     };
 
     public AuthenticatedPerfectLink(DepChainConfig config) {
         this.config = config;
         this.stubbornLink = new StubbornLink(config);
 
-        // Send Messages
+        // Register event handlers
         this.config.eventBus.register(APLSendEvent.class, sendHandler);
-
-        // Listen for message arrivals
         this.config.eventBus.register(SLDeliverEvent.class, slDeliverHandler);
     }
 
+    /**
+     * Sends a message to a given target. If a handshake is not yet complete with the target,
+     * the message is queued and a handshake is initiated.
+     */
     public void sendMessage(Message msg, int targetId) {
-        Message m = new Message(msg);
-        // First message exchange - share a key for MACs
-        while (!this.config.secretKeys.containsKey(targetId)) {
-            try {
-                lock.lock();
-                SecretKey k = CryptoUtils.generateSharedKey();
-                byte[] cipherText = CryptoUtils.cipherMessage(k.getEncoded(), this.config.getPublicKey(targetId));
-                Message handshake =
-                        new Message(CryptoUtils.encodeToBase64(cipherText),
-                                this.config.selfId);
-                handshake.setSignature(CryptoUtils.signMessage(handshake.getPayload(),
-                        this.config.getSelfPrivateKey()));
-                handshake.setPayload(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR + handshake.getPayload());
+        PeerConnection conn = peerConnections.computeIfAbsent(targetId, PeerConnection::new);
 
-                //System.out.println(this + " is sending handshake to " + targetId);
-                this.config.eventBus.publish(new FLLSendEvent(handshake, targetId));
+        conn.lock.lock();
+        try {
+            // Enqueue the message to ensure ordering.
+            conn.pendingMessages.offer(msg);
 
-                handShaken.await();
-                //System.out.println(this + " completed handshake with " + targetId);
-                this.config.secretKeys.put(targetId, k);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                lock.unlock();
+            if (conn.sharedKey == null) {
+                if (config.selfId <= targetId && !conn.handshakeStarted) {
+                    conn.handshakeStarted = true;
+                    // Generate a shared key and initiate handshake.
+                    SecretKey key = CryptoUtils.generateSharedKey();
+                    conn.generatedKey = key;
+                    byte[] cipherText = CryptoUtils.cipherMessage(key.getEncoded(), config.getPublicKey(targetId));
+                    String encoded = CryptoUtils.encodeToBase64(cipherText);
+                    Message handshake = new Message(encoded, config.selfId);
+                    handshake.setPayload(HANDSHAKE_PREFIX + PAYLOAD_SEPARATOR + encoded);
+                    handshake.setSignature(CryptoUtils.signMessage(encoded, config.getSelfPrivateKey()));
+                    if (targetId == config.getSelfId()) {
+                        conn.sharedKey = key;
+                    } else {
+                        config.eventBus.publish(new FLLSendEvent(handshake, targetId));
+                    }
+                }
+                // Wait for handshake completion.
+                while (conn.sharedKey == null) {
+                    conn.handshakeComplete.await();
+                }
+            }
+            // Once handshake is complete, flush all queued messages.
+            flushPendingMessages(conn);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            conn.lock.unlock();
+        }
+    }
+
+    /**
+     * Flushes the pending messages of a peer connection, computing the MAC for each
+     * and sending it over the network.
+     */
+    private void flushPendingMessages(PeerConnection conn) {
+        while (!conn.pendingMessages.isEmpty()) {
+            Message queued = conn.pendingMessages.poll();
+            if (queued != null) {
+                byte[] mac = CryptoUtils.computeMAC(queued.getPayload(), conn.sharedKey);
+                queued.setMac(mac);
+                config.eventBus.publish(new SLSendEvent(queued, conn.peerId));
             }
         }
-
-        // Already have a shared secret, let's compute the MAC
-        byte[] mac = CryptoUtils.computeMAC(m.getPayload(), this.config.secretKeys.get(targetId));
-        m.setMac(mac);
-
-        // And send it over the network
-        //System.out.println("\n" + this + " is sending " + m.getPayload() + "\nto: " + targetId + "\nMAC: " /*+ CryptoUtils.encodeToBase64(m.getMac()) + "\n"*/);
-        this.config.eventBus.publish(new SLSendEvent(m, targetId));
     }
 
     public void close() {
@@ -171,5 +179,22 @@ public class AuthenticatedPerfectLink {
     @Override
     public String toString() {
         return "AuthenticatedPerfectLink{" + "id=" + config.selfId + '}';
+    }
+
+    /**
+     * Holds per-peer state for the handshake and pending messages.
+     */
+    private static class PeerConnection {
+        final int peerId;
+        final Queue<Message> pendingMessages = new LinkedList<>();
+        final Lock lock = new ReentrantLock();
+        final Condition handshakeComplete = lock.newCondition();
+        SecretKey sharedKey = null; // becomes non-null once handshake completes
+        boolean handshakeStarted = false;
+        SecretKey generatedKey = null; // the key we generated when initiating handshake
+
+        PeerConnection(int peerId) {
+            this.peerId = peerId;
+        }
     }
 }

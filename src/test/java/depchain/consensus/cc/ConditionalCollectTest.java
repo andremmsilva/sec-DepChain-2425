@@ -1,6 +1,7 @@
 package depchain.consensus.cc;
 
 import depchain.config.DepChainConfig;
+import depchain.consensus.utils.Broadcast;
 import depchain.network.Message;
 import depchain.network.apl.AuthenticatedPerfectLink;
 import org.junit.jupiter.api.AfterEach;
@@ -27,10 +28,10 @@ public class ConditionalCollectTest {
         links.clear();
         configs.clear();
         ccs.clear();
-        configs.add(new DepChainConfig(0));
-        configs.add(new DepChainConfig(1));
-        configs.add(new DepChainConfig(2));
-        configs.add(new DepChainConfig(3));
+        configs.add(new DepChainConfig(0, 0, "127.0.0.1"));
+        configs.add(new DepChainConfig(1, configs.getFirst().getBasePort(), "127.0.0.1"));
+        configs.add(new DepChainConfig(2, configs.getFirst().getBasePort(), "127.0.0.1" ));
+        configs.add(new DepChainConfig(3, configs.getFirst().getBasePort(), "127.0.0.1" ));
         links.add(new AuthenticatedPerfectLink(configs.get(0)));
         links.add(new AuthenticatedPerfectLink(configs.get(1)));
         links.add(new AuthenticatedPerfectLink(configs.get(2)));
@@ -39,13 +40,17 @@ public class ConditionalCollectTest {
         ccs.add(new ConditionalCollect(configs.get(1), mockPredicate));
         ccs.add(new ConditionalCollect(configs.get(2), mockPredicate));
         ccs.add(new ConditionalCollect(configs.get(3), mockPredicate));
-        Thread.sleep(500);
+        // Cheat to make handshakes work :/
+        Thread.sleep(200);
+        Broadcast.all("1 msg", configs.getFirst());
+        Thread.sleep(300);
     }
 
     @AfterEach
-    public void afterEach() {
+    public void afterEach() throws InterruptedException {
         links.forEach(AuthenticatedPerfectLink::close);
         ccs.forEach(ConditionalCollect::close);
+        Thread.sleep(300);
     }
 
     @Timeout(10)

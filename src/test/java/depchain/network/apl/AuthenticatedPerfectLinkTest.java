@@ -3,7 +3,9 @@ package depchain.network.apl;
 import depchain.config.DepChainConfig;
 import depchain.crypto.CryptoUtils;
 import depchain.network.Message;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,34 +15,23 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthenticatedPerfectLinkTest {
-    private static DepChainConfig receiverConfig;
-    private static AuthenticatedPerfectLink receiver;
-
-    private static DepChainConfig senderConfig;
-    private static AuthenticatedPerfectLink sender;
-
     private final ArrayList<Message> receivedMessages = new ArrayList<>();
-
-    @BeforeAll
-    public static void beforeAll() {
-    }
-
-    @AfterAll
-    public static void afterAll() {
-    }
+    private DepChainConfig senderConfig;
+    private DepChainConfig receiverConfig;
+    private AuthenticatedPerfectLink sender;
+    private AuthenticatedPerfectLink receiver;
 
     @BeforeEach
     public void beforeEach() {
         senderConfig = new DepChainConfig(0, 0, "127.0.0.1");
-        sender = new AuthenticatedPerfectLink(senderConfig);
         receiverConfig = new DepChainConfig(1, senderConfig.getBasePort(), "127.0.0.1");
+        sender = new AuthenticatedPerfectLink(senderConfig);
         receiver = new AuthenticatedPerfectLink(receiverConfig);
         receivedMessages.clear();
     }
 
     @AfterEach
     public void afterEach() {
-
         sender.close();
         receiver.close();
     }

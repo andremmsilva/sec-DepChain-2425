@@ -9,7 +9,7 @@ import depchain.network.DepChainState;
 import depchain.network.Message;
 import depchain.network.apl.AuthenticatedPerfectLink;
 import depchain.network.rw.ProposeEvent;
-import depchain.network.rw.ReadWrite;
+import depchain.network.rw.OldReadWrite;
 
 public class DepChainMain {
 
@@ -58,7 +58,7 @@ public class DepChainMain {
         });
 
         // 6) Create the read/write logic
-        ReadWrite rw = new ReadWrite(depChainState);
+        OldReadWrite rw = new OldReadWrite(depChainState);
 
         // 7) If this is the leader (ID=0 by default in DepChainConfig),
         // we can accept user input to propose transactions:
