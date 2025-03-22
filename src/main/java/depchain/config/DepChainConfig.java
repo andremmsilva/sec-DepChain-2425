@@ -17,8 +17,8 @@ public class DepChainConfig {
     public static final Integer PROCESSES = 4;
     public static final Integer FAIL_BOUND = 1;
     public static final Integer LEADER = 0;
-    public static final String ADDRESS = "127.0.0.1";
-    public static final Integer basePort = 8080;
+    public String ADDRESS;
+    public Integer basePort;
 
     public final ArrayList<PublicKey> publicKeys = new ArrayList<>();
     public final ConcurrentMap<Integer, SecretKey> secretKeys = new ConcurrentHashMap<>();
@@ -28,6 +28,12 @@ public class DepChainConfig {
     public SocketManager socketManager;
 
     public DepChainConfig(int myId) {
+        this(myId, 8080, "127.0.0.1");
+    }
+
+    public DepChainConfig(int myId, int basePort, String address) {
+        this.basePort = basePort;
+        this.ADDRESS = address;
         try {
             for (int i = 0; i < PROCESSES; i++) {
                 publicKeys.add(CryptoUtils.loadPublicKey(makeKeyFileName("/src/resources/keys/public_key_" + i +
@@ -38,9 +44,14 @@ public class DepChainConfig {
                     CryptoUtils.loadPrivateKey(makeKeyFileName("/src/resources/keys/private_key_" + selfId + ".pem"));
             this.eventBus = new EventBus();
             this.socketManager = new SocketManager(this);
+            this.basePort = this.getBasePort();
         } catch (IllegalArgumentException | SocketException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public Integer getBasePort() {
+        return this.socketManager.getSocket().getLocalPort() - this.selfId;
     }
 
     public PublicKey getPublicKey(int id) {
