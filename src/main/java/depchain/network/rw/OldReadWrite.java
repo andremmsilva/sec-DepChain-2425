@@ -26,7 +26,7 @@ import depchain.network.Message;
 import depchain.network.apl.APLDeliverEvent;
 import depchain.network.apl.APLSendEvent;
 
-public class ReadWrite {
+public class OldReadWrite {
     private DepChainState serverState; // Holds current epoch, etc.
     // For demonstration we'll keep track of which value each process has 'written' or 'accepted.'
     private final String[] written = new String[DepChainConfig.PROCESSES];
@@ -46,7 +46,7 @@ public class ReadWrite {
 
     private final EventBus eventBus;
     
-    public ReadWrite(DepChainState serverState) {
+    public OldReadWrite(DepChainState serverState) {
         this.serverState = serverState;
         this.eventBus = serverState.getConfig().eventBus;
     
