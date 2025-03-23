@@ -25,10 +25,10 @@ public class AuthenticatedPerfectLink {
     private final StubbornLink stubbornLink;
     // Maintains per-peer connection state (handshake status + pending messages)
     private final ConcurrentHashMap<Integer, PeerConnection> peerConnections = new ConcurrentHashMap<>();
-    // Used to detect duplicate messages if needed
+    // Used to detect duplicate messages
     private final Set<Message> receivedMessages = Collections.synchronizedSet(new HashSet<>());
     private DepChainConfig config;
-    // Handler for outgoing messages
+    // Handler for send events (send the message when asked to)
     private final Consumer<APLSendEvent> sendHandler = e -> {
         try {
             sendMessage(e.arg, e.getTargetId());

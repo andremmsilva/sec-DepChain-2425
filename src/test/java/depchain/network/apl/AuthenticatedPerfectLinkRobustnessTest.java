@@ -13,7 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuthenticatedPerfectLinkRobustnessTest {
     private DepChainConfig senderConfig;
@@ -101,7 +102,7 @@ public class AuthenticatedPerfectLinkRobustnessTest {
         final List<Message> validMessages = new ArrayList<>();
 
         // We register on one receiver.
-        DepChainConfig targetConfig = receiverConfigs.get(0);
+        DepChainConfig targetConfig = receiverConfigs.getFirst();
         targetConfig.eventBus.register(APLDeliverEvent.class, event -> {
             Message m = event.arg;
             validMessages.add(m);
@@ -119,7 +120,46 @@ public class AuthenticatedPerfectLinkRobustnessTest {
 
         // In our implementation, a message with an incorrect MAC should be logged as invalid.
         // Therefore, validMessages should remain empty.
-        System.out.println(validMessages);
         assertTrue(validMessages.isEmpty(), "Tampered message should not be delivered as valid");
+    }
+
+    @Test
+    @Timeout(10)
+    public void testByzantineNodeSendsTamperedPayload() throws InterruptedException {
+        // Byzantine node (ID 0) sends a valid message, then tampers with it mid-flight
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Message> validMessages = new ArrayList<>();
+
+        // Receiver (non-Byzantine node) listens for messages
+        receiverConfigs.getFirst().eventBus.register(APLDeliverEvent.class, e -> {
+            Message m = e.arg;
+            if (CryptoUtils.verifyMAC(m.getPayload(), m.getMac(), receiverConfigs.getFirst().secretKeys.get(0))) {
+                validMessages.add(m);
+            }
+            latch.countDown();
+        });
+
+        // Byzantine node 0 sends a valid message
+        Message original = new Message("ValidData", 0);
+        senderConfig.eventBus.publish(new APLSendEvent(original, 1)); // Valid send
+
+        while(senderConfig.secretKeys.get(1) == null) {
+            // Wait for HS
+            Thread.sleep(50);
+        }
+
+        // Tamper with the message (simulate network interception)
+        Message tampered = new Message(original);
+        // Here, tampered will have original's MAC - computed in the APL after the initial handshake
+        tampered.setPayload("MaliciousData");
+        // Setting a new payload, and sending via FLL or SL will cause the MAC not to be recomputed,
+        // making the message "tampered" invalid in node 1's vision
+        senderConfig.eventBus.publish(new FLLSendEvent(tampered, 1)); // Tampered send
+
+        latch.await();
+
+        // Only the valid message should be accepted
+        assertEquals(1, validMessages.size());
+        assertEquals("ValidData", validMessages.getFirst().getPayload());
     }
 }
