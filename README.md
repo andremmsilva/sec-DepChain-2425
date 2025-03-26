@@ -31,7 +31,7 @@ mvn test
 
 The tests use JUnit5 and are written in the `src/test/java/depchain/**` directories.
 
-An overview of the suite can be found [here](./src/test/tests.md).
+An overview of the suite can be found [here](common/src/test/tests.md).
 
 ## 📜 **Code Overview**
 
