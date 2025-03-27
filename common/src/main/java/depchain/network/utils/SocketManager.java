@@ -1,4 +1,4 @@
-package depchain.network;
+package depchain.network.utils;
 
 import depchain.config.DepChainConfig;
 
