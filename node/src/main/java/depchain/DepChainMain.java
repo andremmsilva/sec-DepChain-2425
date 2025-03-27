@@ -43,6 +43,11 @@ public class DepChainMain {
             int nodeId = Integer.parseInt(args[0]);
             DepChainMain instance = new DepChainMain(new DepChainConfig(nodeId));
             System.out.println("Starting DepChain Node with id " + nodeId);
+            // On shutdown, close the DepChain instance
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                instance.shutdown();
+                System.out.println("Shutdown DepChain Node with id " + nodeId);
+            }));
         } catch (NumberFormatException e) {
             System.out.println("Invalid node id: " + args[0]);
         }
@@ -82,7 +87,7 @@ public class DepChainMain {
         // Reply to the client
         config.eventBus.publish(new FLLSendEvent(new Message(new MessagePayload(MessageType.APPEND_CONFIRMED,
                 decision), config.selfId), currentReqClientID.get()));
-        blockChainIdx.incrementAndGet();
+        blockChain.add(blockChainIdx.getAndIncrement(), val);
     }
 
     @Override

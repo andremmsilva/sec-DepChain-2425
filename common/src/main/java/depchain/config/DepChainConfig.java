@@ -1,19 +1,18 @@
 package depchain.config;
 
+import depchain.crypto.CryptoUtils;
+import depchain.events.EventBus;
+import depchain.network.utils.PeerConnection;
+import depchain.network.utils.SocketManager;
+
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.SocketException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
-import javax.crypto.SecretKey;
-
-import depchain.crypto.CryptoUtils;
-import depchain.events.EventBus;
-import depchain.network.SocketManager;
 
 public class DepChainConfig {
     public static final Integer PROCESSES = 4;
@@ -24,6 +23,7 @@ public class DepChainConfig {
 
     public final ArrayList<PublicKey> publicKeys = new ArrayList<>();
     public final ConcurrentMap<Integer, SecretKey> secretKeys = new ConcurrentHashMap<>();
+    public final ConcurrentMap<Integer, PeerConnection> peerConnections = new ConcurrentHashMap<>();
     public PrivateKey privateKey;
     public Integer selfId;
     public EventBus eventBus;

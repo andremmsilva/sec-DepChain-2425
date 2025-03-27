@@ -9,12 +9,14 @@ public class Message {
     private byte[] mac;
     private byte[] signature;
     private int senderId;
+    private int sequenceNumber;
 
     public Message(Message other) {
         this.payload = other.payload;
         this.mac = other.mac;
         this.signature = other.signature;
         this.senderId = other.senderId;
+        this.sequenceNumber = other.sequenceNumber;
     }
 
     public Message(MessagePayload payload, int senderId) {
@@ -22,13 +24,23 @@ public class Message {
         this.senderId = senderId;
         this.mac = null;
         this.signature = null;
+        this.sequenceNumber = 0;
     }
 
-    public Message(MessagePayload payload, int senderId, byte[] mac, byte[] signature) {
+    public Message(MessagePayload payload, int senderId, int sequenceNumber) {
+        this.payload = payload;
+        this.senderId = senderId;
+        this.mac = null;
+        this.signature = null;
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    public Message(MessagePayload payload, int senderId, byte[] mac, byte[] signature, int sequenceNumber) {
         this.payload = payload;
         this.mac = mac;
         this.signature = signature;
         this.senderId = senderId;
+        this.sequenceNumber = sequenceNumber;
     }
 
     public static Message deserialize(Gson gson, String json) {
@@ -37,6 +49,14 @@ public class Message {
 
     public String serialize(Gson gson) {
         return gson.toJson(this);
+    }
+
+    public int getSequenceNumber() {
+        return sequenceNumber;
+    }
+
+    public void setSequenceNumber(int sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
     }
 
     @Override

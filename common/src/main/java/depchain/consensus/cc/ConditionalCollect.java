@@ -50,7 +50,7 @@ public class ConditionalCollect {
                     config.getPublicKey(m.getSenderId()))) {
                 lock.lock();
                 messages.put(m.getSenderId(),
-                        new Message(new MessagePayload(payload), m.getSenderId(), m.getMac(), m.getSignature()));
+                        new Message(m));
                 newMessage.signal();
                 lock.unlock();
                 System.out.println(this + " onAPLDeliver SEND " + m.getPayload().serialize(new Gson()));
@@ -61,10 +61,16 @@ public class ConditionalCollect {
             System.out.println(this + " onAPLDeliver COLLECTED from " + m.getSenderId());
 
             Map<String, Message> receivedMsgs = new HashMap<>();
-            for (Map.Entry<String, String> e : payload.getParameters().entrySet()) {
+            for (Map.Entry<String, String> e : m.getPayload().getParameters().entrySet()) {
                 Message mi = Message.deserialize(new Gson(), e.getValue());
                 if (mi == null) {
                     System.err.println("Invalid message received: " + e.getValue());
+                    continue;
+                }
+                try {
+                    // Check if this is a process ID and not another parameter
+                    Integer.parseInt(e.getKey());
+                } catch (NumberFormatException ex) {
                     continue;
                 }
 

@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>DepChain</name>
-    <description>POC for DepChain: Byzantine Consensus in a High-Dependability Blockchain</description>
+    <description>Byzantine Consensus in a High-Dependability Blockchain</description>
     <modules>
         <module>common</module>
         <module>node</module>
