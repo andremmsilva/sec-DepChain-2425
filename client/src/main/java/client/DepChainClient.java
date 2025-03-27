@@ -62,7 +62,7 @@ public class DepChainClient {
             String[] tokens = line.split(" ");
 
             switch (tokens[0]) {
-                case "append":
+                case "append" -> {
                     if (tokens.length == 2) {
                         String transaction = tokens[1];
                         if (client.append(transaction)) {
@@ -73,12 +73,13 @@ public class DepChainClient {
                     } else {
                         System.err.println("Usage: append <transaction>");
                     }
-                case "exit":
+                }
+                case "exit" -> {
                     System.out.println("Exiting...");
                     scanner.close();
+                }
 
-                default:
-                    System.err.println("Unrecognized command: " + line);
+                default -> System.err.println("Unrecognized command: " + line);
             }
         }
     }
@@ -107,7 +108,7 @@ public class DepChainClient {
         // Wait for the reply
         try {
             latch.await();
-            return successes.stream().filter(e -> e.equals(true)).count() >= Math.ceil((DepChainConfig.FAIL_BOUND + 1) / 2);
+            return successes.stream().filter(e -> e.equals(true)).count() >= Math.ceil((double) (DepChainConfig.FAIL_BOUND + 1) / 2);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("DepChainClient@append: " + e.getMessage());
