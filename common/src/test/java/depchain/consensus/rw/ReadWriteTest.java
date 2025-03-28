@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -150,10 +152,16 @@ public class ReadWriteTest {
         System.out.println("\ntestOnCCCollectedUnbound()\n");
         CountDownLatch latch =
                 new CountDownLatch(DepChainConfig.PROCESSES * (DepChainConfig.PROCESSES - DepChainConfig.FAIL_BOUND));
-        List<Message> received = Collections.synchronizedList(new ArrayList<>());
+        List<Message> received = new ArrayList<>();
+        Lock lock = new ReentrantLock();
         Consumer<APLDeliverEvent> aplDeliverConsumer = e -> {
             if (e.arg.getPayload().getType().equals(MessageType.WRITE)) {
-                received.add(e.arg);
+                try {
+                    lock.lock();
+                    received.add(e.arg);
+                } finally {
+                    lock.unlock();
+                }
                 latch.countDown();
             }
         };
@@ -168,8 +176,13 @@ public class ReadWriteTest {
         latch.await();
 
         System.out.println(received.size());
-        assertTrue(
-                received.stream().allMatch(m -> m.getPayload().getData().equals("1")));
+        try {
+            lock.lock();
+            assertTrue(
+                    received.stream().allMatch(m -> m.getPayload().getData().equals("1")));
+        } finally {
+            lock.unlock();
+        }
 
         // Teardown
         configs.forEach(config -> config.eventBus.unregister(APLDeliverEvent.class, aplDeliverConsumer));

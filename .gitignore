@@ -6,4 +6,5 @@ target/
 .classpath
 g28.pdf
 result.log
+**/dependency-reduced-pom.xml
 

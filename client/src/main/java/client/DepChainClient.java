@@ -12,7 +12,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class DepChainClient {
@@ -85,35 +89,51 @@ public class DepChainClient {
     }
 
     public boolean append(String payload) {
+        AtomicInteger replyCount = new AtomicInteger(0);
         List<Boolean> successes = Collections.synchronizedList(new ArrayList<>());
+        Lock lock = new ReentrantLock();
+        Condition newMessageCond = lock.newCondition();
         // Wait for f + 1 messages from nodes
-        CountDownLatch latch = new CountDownLatch(DepChainConfig.FAIL_BOUND + 1);
 
         Consumer<SLDeliverEvent> onResponse = e -> {
-            latch.countDown();
-            Message res = e.arg;
-            successes.add(res.getPayload().getType().equals(MessageType.APPEND_CONFIRMED));
+            try {
+                lock.lock();
+                newMessageCond.signal();
+                Message res = e.arg;
+                replyCount.incrementAndGet();
+                successes.add(res.getPayload().getType().equals(MessageType.APPEND_CONFIRMED));
+            } finally {
+                lock.unlock();
+            }
         };
 
         // Register the response handler
         config.eventBus.register(SLDeliverEvent.class, onResponse);
 
-        // Send the actual message
-        for (int i = 0; i < DepChainConfig.FAIL_BOUND + 1; i++) {
+        // Send the actual message to all nodes
+        for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
             config.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.APPEND_REQ, payload),
                     config.selfId),
                     i));
         }
 
-        // Wait for the reply
         try {
-            latch.await();
-            return successes.stream().filter(e -> e.equals(true)).count() >= Math.ceil((double) (DepChainConfig.FAIL_BOUND + 1) / 2);
+            lock.lock();
+            // If we get all replies or F + 1 positive replies, don't wait longer
+            while (replyCount.get() < DepChainConfig.PROCESSES || successes.size() < DepChainConfig.FAIL_BOUND + 1) {
+                // Block until a message arrives
+                if (!newMessageCond.await(10, TimeUnit.SECONDS)) {
+                    // 10 seconds have passed, giving up on obtaining F + 1 positive replies
+                    return false;
+                }
+            }
+            return successes.size() >= DepChainConfig.FAIL_BOUND + 1;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("DepChainClient@append: " + e.getMessage());
             return false;
         } finally {
+            lock.unlock();
             config.eventBus.unregister(SLDeliverEvent.class, onResponse);
         }
     }

@@ -44,7 +44,13 @@ public class ByzantineLeaderDrivenConsensus {
         if (decision.get().isEmpty()) {
             decision.set(e.arg);
             this.config.eventBus.publish(new LDCDecideEvent(decision.get()));
-            this.rwInstances.getFirst().close();
+            this.lock.lock();
+            try {
+                this.rwInstances.getFirst().close();
+                this.rwInstances.clear();
+            } finally {
+                this.lock.unlock();
+            }
         }
     };
 
@@ -56,6 +62,8 @@ public class ByzantineLeaderDrivenConsensus {
         config.eventBus.register(LDCProposeEvent.class, onLDCPropose);
         config.eventBus.register(RWDecideEvent.class, onRWDecide);
 
+        System.out.println(this + " starting...");
+
         executor.submit(this::watchProposal);
     }
 
@@ -64,10 +72,6 @@ public class ByzantineLeaderDrivenConsensus {
         System.out.println(this + " shutting down");
         config.eventBus.unregister(LDCProposeEvent.class, onLDCPropose);
         config.eventBus.unregister(RWDecideEvent.class, onRWDecide);
-
-//        for (ReadWrite rw : rwInstances) {
-//            rw.close();
-//        }
 
         this.running.set(false);
         try {
@@ -99,6 +103,7 @@ public class ByzantineLeaderDrivenConsensus {
                 }
 
                 proposed.set(true);
+
                 System.out.println(this + " proposed " + val.get());
                 config.eventBus.publish(new RWProposeEvent(val.get()));
             } catch (InterruptedException e) {
@@ -113,5 +118,9 @@ public class ByzantineLeaderDrivenConsensus {
     @Override
     public String toString() {
         return "BLDC{id=" + config.selfId + "}";
+    }
+
+    public AtomicBoolean getAborted() {
+        return aborted;
     }
 }

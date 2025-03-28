@@ -86,7 +86,6 @@ public class ConditionalCollect {
                         System.err.println("CC onAPLDeliver could not verify signature - " + mj.serialize(new Gson()));
                         return;
                     }
-                    System.out.println(this + " CC " + mj.getPayload().serialize(new Gson()));
                 }
 
                 this.collected.set(true);

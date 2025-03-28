@@ -1,6 +1,5 @@
 package depchain.network.sl;
 
-import com.google.gson.Gson;
 import depchain.config.DepChainConfig;
 import depchain.network.fll.FLLDeliverEvent;
 import depchain.network.fll.FLLSendEvent;
@@ -78,23 +77,18 @@ public class StubbornLink {
                 // Send ACK for this message (even if it's a duplicate or out of order)
                 sendAck(m.getSenderId(), mSeqNum);
 
-                if (mSeqNum < conn.expectedSeqNum) {
-                    // Duplicate message, already delivered, ignore
-                    System.out.println(this + " received duplicate message with seq " + mSeqNum + " from " + m.getSenderId());
-                } else if (mSeqNum == conn.expectedSeqNum) {
+                if (mSeqNum == conn.expectedSeqNum) {
                     // In-order message, deliver it immediately
                     conn.expectedSeqNum++;
-                    System.out.println(this + " received " + m.serialize(new Gson()) +
-                            " from peer " + m.getSenderId());
                     this.config.eventBus.publish(new SLDeliverEvent(m));
 
                     // Check if we can deliver any buffered future messages
                     deliverBufferedMessages(conn);
-                } else {
+                } else if (mSeqNum > conn.expectedSeqNum) {
                     // Out-of-order message, buffer it for later delivery
-                    System.out.println(this + " buffering out-of-order message with seq " + mSeqNum);
                     conn.futureMessages.add(m);
                 }
+                // Otherwise we received a duplicate message, and we ignore it
             } finally {
                 conn.lock.unlock();
             }
@@ -111,8 +105,6 @@ public class StubbornLink {
                 conn.futureMessages.poll(); // Remove from buffer
                 conn.expectedSeqNum++;
                 // Deliver the message
-                System.out.println(this + " received " + nextMsg.serialize(new Gson()) +
-                        " from peer " + nextMsg.getSenderId());
                 this.config.eventBus.publish(new SLDeliverEvent(nextMsg));
             } else {
                 // Gap in sequence, wait for missing messages
@@ -151,8 +143,6 @@ public class StubbornLink {
 
     private void sendOnce(Message m, int targetId) {
         // Send without tracking for retransmission (used for ACKs)
-        System.out.println(this + " sending " + m.serialize(new Gson()) +
-                " to peer " + targetId);
         this.config.eventBus.publish(new FLLSendEvent(m, targetId));
     }
 

@@ -42,7 +42,6 @@ public class AuthenticatedPerfectLink {
             if (conn.sharedKey != null) {
                 // Verify MAC - only deliver if valid
                 if (CryptoUtils.verifyMAC(m.getPayload().serialize(new Gson()), m.getMac(), conn.sharedKey)) {
-                    System.out.println(this + " received authenticated message: " + m.serialize(new Gson()));
                     config.eventBus.publish(new APLDeliverEvent(m));
                 } else {
                     System.out.println(this + " received invalid message " + m.getPayload().serialize(new Gson()) +
@@ -53,7 +52,6 @@ public class AuthenticatedPerfectLink {
 
             // Handshake not complete yet
             if (m.getPayload().getType() == null) {
-                System.out.println(this + " received message before HS " + m.serialize(new Gson()));
                 conn.incomingMessages.offer(m);
             }
             switch (m.getPayload().getType()) {
@@ -61,7 +59,6 @@ public class AuthenticatedPerfectLink {
                 case HS_SYNACK -> handleSynAck(m, conn, senderId);
                 case HS_ACK -> conn.handshakeComplete.signalAll();
                 default -> {
-                    System.out.println(this + " received message before HS " + m.serialize(new Gson()));
                     conn.incomingMessages.offer(m);
                 }
             }
@@ -100,7 +97,6 @@ public class AuthenticatedPerfectLink {
                 config.getPublicKey(senderId))) {
             SecretKey sharedKey = CryptoUtils.secretKeyFromBytes(keyBytes);
 
-            System.out.println(this + " received SYN " + encodedPayload + " \nfrom " + m.getSenderId());
             // Reply with an SYNACK message, authenticated with the new shared key.
             Message reply = new Message(new MessagePayload(MessageType.HS_SYNACK, ""), config.selfId);
             reply.setMac(CryptoUtils.computeMAC(reply.getPayload().serialize(new Gson()), sharedKey));
@@ -112,7 +108,6 @@ public class AuthenticatedPerfectLink {
             }
 
             // Ack arrived, confirm handshake
-            System.out.println(this + " received ACK");
             conn.sharedKey = sharedKey;
             config.secretKeys.put(senderId, sharedKey);
 
@@ -124,7 +119,6 @@ public class AuthenticatedPerfectLink {
     }
 
     private void handleSynAck(Message m, PeerConnection conn, int senderId) {
-        System.out.println(this + " received SYNACK " + m.getPayload().serialize(new Gson()) + " \nfrom " + m.getSenderId());
         conn.sharedKey = conn.generatedKey; // complete our handshake
         config.secretKeys.put(senderId, conn.sharedKey);
         conn.handshakeComplete.signalAll();
@@ -171,8 +165,6 @@ public class AuthenticatedPerfectLink {
                         conn.sharedKey = key;
                     } else {
                         // send the HS over the network
-                        System.out.println(this + " sending HS " + handshake.getPayload().serialize(new Gson()) + " " +
-                                "\nto " + targetId);
                         config.eventBus.publish(new SLSendEvent(handshake, targetId));
                     }
                 }

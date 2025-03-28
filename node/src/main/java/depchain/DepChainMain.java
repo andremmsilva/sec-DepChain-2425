@@ -1,20 +1,25 @@
 package depchain;
 
+import com.google.gson.Gson;
 import depchain.config.DepChainConfig;
 import depchain.consensus.ByzantineLeaderDrivenConsensus;
 import depchain.consensus.LDCDecideEvent;
 import depchain.consensus.LDCProposeEvent;
 import depchain.network.apl.AuthenticatedPerfectLink;
-import depchain.network.fll.FLLSendEvent;
 import depchain.network.message.Message;
 import depchain.network.message.MessagePayload;
 import depchain.network.message.MessageType;
 import depchain.network.sl.SLDeliverEvent;
+import depchain.network.sl.SLSendEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class DepChainMain {
@@ -23,16 +28,18 @@ public class DepChainMain {
     private final AtomicInteger currentReqClientID = new AtomicInteger(0);
     private final DepChainConfig config;
     private final AuthenticatedPerfectLink apl;
-    private final ByzantineLeaderDrivenConsensus BLDConsensus;
-
+    private final AtomicBoolean inConsensus = new AtomicBoolean(false);
+    private final Lock lock = new ReentrantLock();
+    private final Condition consensusFinished = lock.newCondition();
     // Consumers for diverse events
     private final Consumer<SLDeliverEvent> onSLDeliver = this::handleSLDeliver;
+    private ByzantineLeaderDrivenConsensus BLDConsensus;
     private final Consumer<LDCDecideEvent> onLDCDecide = this::handleLDCDecide;
 
     public DepChainMain(DepChainConfig config) {
         this.config = config;
         this.apl = new AuthenticatedPerfectLink(config);
-        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
+//        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
 
         config.eventBus.register(SLDeliverEvent.class, onSLDeliver);
         config.eventBus.register(LDCDecideEvent.class, onLDCDecide);
@@ -57,8 +64,17 @@ public class DepChainMain {
         config.eventBus.unregister(SLDeliverEvent.class, onSLDeliver);
         config.eventBus.unregister(LDCDecideEvent.class, onLDCDecide);
 
-        this.BLDConsensus.shutdown();
         this.apl.close();
+
+        try {
+            lock.lock();
+            if (this.inConsensus.getAndSet(false)) {
+                this.BLDConsensus.shutdown();
+            }
+            this.consensusFinished.signal();
+        } finally {
+            lock.unlock();
+        }
     }
 
     private void handleSLDeliver(SLDeliverEvent e) {
@@ -67,10 +83,25 @@ public class DepChainMain {
             return;
         }
 
+        // wait for the current consensus to finish
+        while (this.inConsensus.getAndSet(true)) {
+            try {
+                lock.lock();
+                this.consensusFinished.await();
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                break;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        // Create a new instance only after cleanup
+        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
         String val = e.arg.getPayload().getData();
         String proposal = val.concat("####").concat(String.valueOf(blockChainIdx.get()));
         this.currentReqClientID.set(e.arg.getSenderId());
-        System.out.println(this + " received APPEND message " + val + " from client " + currentReqClientID.get());
+        System.out.println(this + " received APPEND message " + e.arg.serialize(new Gson()) + " from client " + currentReqClientID.get());
 
         // Propose this value as the next index in the blockchain
         System.out.println(this + " proposing " + val + " for idx " + blockChainIdx.get());
@@ -85,9 +116,29 @@ public class DepChainMain {
         System.out.println(this + " received LDCDecide " + val + " for idx " + idx);
 
         // Reply to the client
-        config.eventBus.publish(new FLLSendEvent(new Message(new MessagePayload(MessageType.APPEND_CONFIRMED,
-                decision), config.selfId), currentReqClientID.get()));
+        Message m = new Message(new MessagePayload(MessageType.APPEND_CONFIRMED,
+                decision), config.selfId);
+        System.out.println(this + " sending " + m.serialize(new Gson()) + " to " + currentReqClientID.get());
+        config.eventBus.publish(new SLSendEvent(m, currentReqClientID.get()));
         blockChain.add(blockChainIdx.getAndIncrement(), val);
+        try {
+            this.lock.lock();
+            if (this.inConsensus.getAndSet(false)) {
+                ByzantineLeaderDrivenConsensus oldConsensus = this.BLDConsensus;
+                this.BLDConsensus = null; // Clear reference first
+                oldConsensus.shutdown();
+
+                // Wait a bit longer for full cleanup
+                Thread.sleep(1000);
+
+            }
+            // Reset client ID after handling
+            this.consensusFinished.signal();
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            this.lock.unlock();
+        }
     }
 
     @Override
