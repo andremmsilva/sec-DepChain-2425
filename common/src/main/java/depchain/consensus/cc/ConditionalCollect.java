@@ -53,12 +53,12 @@ public class ConditionalCollect {
                         new Message(m));
                 newMessage.signal();
                 lock.unlock();
-                System.out.println(this + " onAPLDeliver SEND " + m.getPayload().serialize(new Gson()));
+//                System.out.println(this + " onAPLDeliver SEND " + m.getPayload().serialize(new Gson()));
             } else {
                 System.out.println(this + " onAPLDeliver could not verify signature " + m.getPayload().serialize(new Gson()));
             }
         } else if (payload.getType().equals(MessageType.COLLECTED) && m.getSenderId() == DepChainConfig.LEADER) {
-            System.out.println(this + " onAPLDeliver COLLECTED from " + m.getSenderId());
+//            System.out.println(this + " onAPLDeliver COLLECTED from " + m.getSenderId());
 
             Map<String, Message> receivedMsgs = new HashMap<>();
             for (Map.Entry<String, String> e : m.getPayload().getParameters().entrySet()) {
@@ -125,7 +125,7 @@ public class ConditionalCollect {
 
                     Message m = new Message(payload, this.config.selfId);
                     for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-                        System.out.println(this + " sending COLLECTED to " + i);
+//                        System.out.println(this + " sending COLLECTED to " + i);
                         this.config.eventBus.publish(new APLSendEvent(new Message(m), i));
                     }
                     this.messages.clear();

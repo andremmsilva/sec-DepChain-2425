@@ -38,7 +38,7 @@ public class DepChainConfig {
         this.ADDRESS = address;
         try {
             // Load public keys
-            for (int i = 0; i < PROCESSES; i++) {
+            for (int i = 0; i < 15; i++) {
                 try (InputStream pubKeyStream = getClass().getResourceAsStream("/keys/public_key_" + i + ".pem")) {
                     if (pubKeyStream == null) {
                         throw new RuntimeException("Public key not found: public_key_" + i + ".pem");
@@ -69,7 +69,7 @@ public class DepChainConfig {
     }
 
     public PublicKey getPublicKey(int id) {
-        return publicKeys.get(Math.abs(id));
+        return publicKeys.get(id);
     }
 
     public PublicKey getSelfPublicKey() {

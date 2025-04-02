@@ -60,7 +60,7 @@
             <version>4.10.3</version>
         </dependency>
     </dependencies>
-        <repositories>
+    <repositories>
         <repository>
             <id>hyperledger-besu</id>
             <url>https://hyperledger.jfrog.io/artifactory/besu-maven/</url>
@@ -85,6 +85,16 @@
                                     <mainClass>depchain.DepChainMain</mainClass> <!-- Your main class -->
                                 </transformer>
                             </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

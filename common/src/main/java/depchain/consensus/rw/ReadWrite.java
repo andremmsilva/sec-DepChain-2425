@@ -46,7 +46,7 @@ public class ReadWrite {
             State s = State.deserialize(new Gson(), m.getPayload().getData());
             if (s != null) {
                 states.put(m.getSenderId(), s);
-                System.out.println(this + " onCCCollected " + s + " from " + m.getSenderId());
+//                System.out.println(this + " onCCCollected " + s + " from " + m.getSenderId());
             }
         });
 
@@ -95,13 +95,13 @@ public class ReadWrite {
 
     private final Consumer<APLDeliverEvent> onAPLDeliver = e -> {
         if (e.arg.getPayload().getType().equals(MessageType.READ) && e.arg.getSenderId() == DepChainConfig.LEADER) {
-            System.out.println(this + " got READ, sending CCInput " + this.epochState.serialize(new Gson()));
+//            System.out.println(this + " got READ, sending CCInput " + this.epochState.serialize(new Gson()));
             this.config.eventBus.publish(
                     new CCInputEvent(new Message(new MessagePayload(null, this.epochState.serialize(new Gson())),
                             this.config.selfId)));
         } else if (e.arg.getPayload().getType().equals(MessageType.WRITE)) {
             String val = e.arg.getPayload().getData();
-            System.out.println(this + " got WRITE " + val + " from " + e.arg.getSenderId());
+//            System.out.println(this + " got WRITE " + val + " from " + e.arg.getSenderId());
             try {
                 this.lock.lock();
                 this.written.put(e.arg.getSenderId(), val);
@@ -112,7 +112,7 @@ public class ReadWrite {
 
         } else if (e.arg.getPayload().getType().equals(MessageType.ACCEPT)) {
             String val = e.arg.getPayload().getData();
-            System.out.println(this + " got ACCEPT " + val + " from " + e.arg.getSenderId());
+//            System.out.println(this + " got ACCEPT " + val + " from " + e.arg.getSenderId());
             try {
                 this.lock.lock();
                 this.accepted.put(e.arg.getSenderId(), val);
@@ -201,7 +201,6 @@ public class ReadWrite {
     }
 
     public void close() {
-        System.out.println(this + " shutting down");
         this.cc.close();
         if (this.running.get()) {
             this.config.eventBus.unregister(RWProposeEvent.class, onPropose);
@@ -226,7 +225,7 @@ public class ReadWrite {
                 throw new RuntimeException(e);
             }
         }
-        System.out.println(this + " shutting down");
+        System.out.println(this + " shut down");
     }
 
     @Override

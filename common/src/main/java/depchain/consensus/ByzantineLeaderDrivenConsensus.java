@@ -69,7 +69,6 @@ public class ByzantineLeaderDrivenConsensus {
 
 
     public void shutdown() {
-        System.out.println(this + " shutting down");
         config.eventBus.unregister(LDCProposeEvent.class, onLDCPropose);
         config.eventBus.unregister(RWDecideEvent.class, onRWDecide);
 
