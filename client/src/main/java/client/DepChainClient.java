@@ -93,7 +93,6 @@ public class DepChainClient {
                 }
                 case "transferFrom" -> {
                     if (tokens.length == 3) {
-                        String account = tokens[1];
                         try{
                             Integer.parseInt(tokens[2]);
                         } catch (NumberFormatException e){
@@ -160,17 +159,17 @@ public class DepChainClient {
         if(transType.equals("balance")){
             data = operation[0]+"|"+operation[1];
             signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.BALANCE_REQ, new Transaction(transType, "myaddress", operation[1], signature));
+            payload = new MessagePayload(MessageType.BALANCE_REQ, new Transaction("myaddress", operation[1], signature));
 
         } else if(transType.equals("transfer")){
             data = operation[0]+"|"+operation[1]+"|"+operation[2]+"|"+operation[3];
             signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.TRANSFER_REQ, new Transaction(transType, "myaddress", operation[1], Long.parseLong(operation[2]), operation[3], signature));
+            payload = new MessagePayload(MessageType.TRANSFER_REQ, new Transaction("myaddress", operation[1], Long.parseLong(operation[2]), operation[3], signature));
 
         } else if(transType.equals("transferFrom")){
             data = operation[0]+"|"+operation[1]+"|"+operation[2]+"|"+operation[3];
             signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.TRANSFERFROM_REQ, new Transaction(transType, operation[1],"myaddress", Long.parseLong(operation[2]), operation[3], signature));
+            payload = new MessagePayload(MessageType.TRANSFERFROM_REQ, new Transaction(operation[1],"myaddress", Long.parseLong(operation[2]), operation[3], signature));
 
         } else{
              return false;
