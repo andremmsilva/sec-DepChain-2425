@@ -18,12 +18,18 @@ public class Message {
         this.senderId = other.senderId;
         this.sequenceNumber = other.sequenceNumber;
     }
-
     public Message(MessagePayload payload, int senderId) {
         this.payload = payload;
         this.senderId = senderId;
         this.mac = null;
         this.signature = null;
+        this.sequenceNumber = 0;
+    }
+    public Message(MessagePayload payload, int senderId, byte[] signature) {
+        this.payload = payload;
+        this.senderId = senderId;
+        this.mac = null;
+        this.signature = signature;
         this.sequenceNumber = 0;
     }
 

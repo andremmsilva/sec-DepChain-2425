@@ -1,9 +1,10 @@
 package depchain.consensus.rw;
 
 import depchain.events.Event;
+import depchain.network.message.Transaction;
 
-public class RWProposeEvent extends Event<String> {
-    public RWProposeEvent(String v) {
+public class RWProposeEvent extends Event<Transaction> {
+    public RWProposeEvent(Transaction v) {
         super(v);
     }
 }

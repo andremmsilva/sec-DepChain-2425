@@ -56,7 +56,7 @@ public class DepChainMainTest {
         StubbornLink clientSl = new StubbornLink(client);
         Consumer<SLDeliverEvent> consumer = e -> {
             Message m = e.arg;
-            if (m.getPayload().getType() == MessageType.APPEND_CONFIRMED) {
+            if (m.getPayload().getType() == MessageType.TRANSACTION_CONFIRMED) {
                 System.out.println("Got append confirmed " + m.getPayload().getData());
                 latch.countDown();
             }
@@ -67,7 +67,7 @@ public class DepChainMainTest {
         client.eventBus.register(SLDeliverEvent.class, consumer);
 
         for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.APPEND_REQ, "1"),
+            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.BALANCE_REQ, ""),
                     client.selfId), i));
         }
 
@@ -87,7 +87,7 @@ public class DepChainMainTest {
         Consumer<SLDeliverEvent> consumer = e -> {
             Message m = e.arg;
             System.out.println("Got message from " + m.getSenderId() + " " + m.serialize(new Gson()));
-            if (m.getPayload().getType() == MessageType.APPEND_CONFIRMED) {
+            if (m.getPayload().getType() == MessageType.TRANSACTION_CONFIRMED) {
                 latch.countDown();
                 // Verify first and second messages
                 // You might need to store received messages and assert separately
@@ -97,17 +97,17 @@ public class DepChainMainTest {
         client.eventBus.register(SLDeliverEvent.class, consumer);
 
         for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.APPEND_REQ, "1"),
+            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.BALANCE_REQ, ""),
                     client.selfId), i));
         }
         Thread.sleep(200);
         for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.APPEND_REQ, "2"),
+            client.eventBus.publish(new SLSendEvent(new Message(new MessagePayload(MessageType.BALANCE_REQ, ""),
                     client.selfId), i));
         }
 
         boolean completed = latch.await(20, TimeUnit.SECONDS);
-        assertTrue(completed, "Latch timed out waiting for APPEND_CONFIRMED");
+        assertTrue(completed, "Latch timed out waiting for TRANSACTION_CONFIRMED");
 
         client.eventBus.unregister(SLDeliverEvent.class, consumer);
         clientSl.close();

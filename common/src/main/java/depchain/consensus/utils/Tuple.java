@@ -2,11 +2,13 @@ package depchain.consensus.utils;
 
 import java.util.Objects;
 
+import depchain.network.message.Transaction;
+
 public class Tuple {
     int timestamp;
-    String value;
+    Transaction value;
 
-    public Tuple(int timestamp, String value) {
+    public Tuple(int timestamp, Transaction value) {
         this.timestamp = timestamp;
         this.value = value;
     }
@@ -15,7 +17,7 @@ public class Tuple {
         return this.timestamp;
     }
 
-    public synchronized String getValue() {
+    public synchronized Transaction getValue() {
         return this.value;
     }
 

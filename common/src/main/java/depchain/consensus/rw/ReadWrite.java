@@ -13,6 +13,7 @@ import depchain.network.apl.APLDeliverEvent;
 import depchain.network.message.Message;
 import depchain.network.message.MessagePayload;
 import depchain.network.message.MessageType;
+import depchain.network.message.Transaction;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -32,9 +33,9 @@ public class ReadWrite {
     private final Condition acceptedCond = lock.newCondition();
     private final ConditionalCollect cc;
     private final Sound sound = new Sound();
-    private final Map<Integer, String> written =
+    private final Map<Integer, Transaction> written =
             Collections.synchronizedMap(new HashMap<>(DepChainConfig.PROCESSES));
-    private final Map<Integer, String> accepted =
+    private final Map<Integer, Transaction> accepted =
             Collections.synchronizedMap(new HashMap<>(DepChainConfig.PROCESSES));
     private Integer ets;
     private DepChainConfig config;
@@ -50,7 +51,7 @@ public class ReadWrite {
             }
         });
 
-        String tmpVal = "";
+        Transaction tmpVal = null;
         for (State state : states.values()) {
             if (this.sound.binds(state.getLastRound(), new ArrayList<>(states.values()))) {
                 tmpVal = state.getLastRound().getValue();
@@ -100,7 +101,7 @@ public class ReadWrite {
                     new CCInputEvent(new Message(new MessagePayload(null, this.epochState.serialize(new Gson())),
                             this.config.selfId)));
         } else if (e.arg.getPayload().getType().equals(MessageType.WRITE)) {
-            String val = e.arg.getPayload().getData();
+            Transaction val = e.arg.getPayload().getTransaction();
 //            System.out.println(this + " got WRITE " + val + " from " + e.arg.getSenderId());
             try {
                 this.lock.lock();
@@ -111,7 +112,7 @@ public class ReadWrite {
             }
 
         } else if (e.arg.getPayload().getType().equals(MessageType.ACCEPT)) {
-            String val = e.arg.getPayload().getData();
+            Transaction val = e.arg.getPayload().getTransaction();
 //            System.out.println(this + " got ACCEPT " + val + " from " + e.arg.getSenderId());
             try {
                 this.lock.lock();
@@ -146,10 +147,10 @@ public class ReadWrite {
             try {
                 this.lock.lock();
                 this.writtenCond.await();
-                Map<String, Integer> appearances = new HashMap<>();
+                Map<Transaction, Integer> appearances = new HashMap<>();
 
                 this.written.values().forEach(s -> appearances.put(s, appearances.getOrDefault(s, 0) + 1));
-                for (Map.Entry<String, Integer> app : appearances.entrySet()) {
+                for (Map.Entry<Transaction, Integer> app : appearances.entrySet()) {
                     if (app.getValue() > (DepChainConfig.PROCESSES + DepChainConfig.FAIL_BOUND) / 2) {
                         this.epochState.setLastRound(new Tuple(this.ets, app.getKey()));
                         this.written.clear();
@@ -172,10 +173,10 @@ public class ReadWrite {
             try {
                 this.lock.lock();
                 this.acceptedCond.await();
-                Map<String, Integer> appearances = new HashMap<>();
+                Map<Transaction, Integer> appearances = new HashMap<>();
 
                 this.accepted.values().forEach(s -> appearances.put(s, appearances.getOrDefault(s, 0) + 1));
-                for (Map.Entry<String, Integer> app : appearances.entrySet()) {
+                for (Map.Entry<Transaction, Integer> app : appearances.entrySet()) {
                     if (app.getValue() > (DepChainConfig.PROCESSES + DepChainConfig.FAIL_BOUND) / 2) {
                         this.accepted.clear();
                         this.config.eventBus.publish(new RWDecideEvent(app.getKey()));

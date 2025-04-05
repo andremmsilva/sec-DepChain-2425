@@ -9,6 +9,7 @@ import depchain.network.apl.AuthenticatedPerfectLink;
 import depchain.network.message.Message;
 import depchain.network.message.MessagePayload;
 import depchain.network.message.MessageType;
+import depchain.network.message.Transaction;
 import depchain.network.sl.SLDeliverEvent;
 import depchain.network.sl.SLSendEvent;
 
@@ -79,7 +80,7 @@ public class DepChainMain {
 
     private void handleSLDeliver(SLDeliverEvent e) {
         // Not a client message - ignore
-        if (!e.arg.getPayload().getType().equals(MessageType.APPEND_REQ)) {
+        if (!(e.arg.getPayload().getType().equals(MessageType.BALANCE_REQ)||e.arg.getPayload().getType().equals(MessageType.TRANSFER_REQ)||e.arg.getPayload().getType().equals(MessageType.TRANSFERFROM_REQ))) {
             return;
         }
 
@@ -98,29 +99,27 @@ public class DepChainMain {
 
         // Create a new instance only after cleanup
         this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
-        String val = e.arg.getPayload().getData();
-        String proposal = val.concat("####").concat(String.valueOf(blockChainIdx.get()));
+        Transaction transaction = e.arg.getPayload().getTransaction();
+        transaction.setBlockId(String.valueOf(blockChainIdx.get()));
         this.currentReqClientID.set(e.arg.getSenderId());
-        System.out.println(this + " received APPEND message " + e.arg.serialize(new Gson()) + " from client " + currentReqClientID.get());
+        System.out.println(this + " received Transaction message " + e.arg.serialize(new Gson()) + " from client " + currentReqClientID.get());
 
         // Propose this value as the next index in the blockchain
-        System.out.println(this + " proposing " + val + " for idx " + blockChainIdx.get());
-        config.eventBus.publish(new LDCProposeEvent(proposal));
+        System.out.println(this + " proposing " + transaction + " for idx " + blockChainIdx.get());
+        config.eventBus.publish(new LDCProposeEvent(transaction));
     }
 
     private void handleLDCDecide(LDCDecideEvent e) {
-        String decision = e.arg;
-        String val = e.arg.split("####")[0];
-        String idx = e.arg.split("####")[1];
+        Transaction decision = e.arg;
 
-        System.out.println(this + " received LDCDecide " + val + " for idx " + idx);
+        System.out.println(this + " received LDCDecide " + decision.toString() + " for idx " + decision.getBlockId());
 
         // Reply to the client
-        Message m = new Message(new MessagePayload(MessageType.APPEND_CONFIRMED,
+        Message m = new Message(new MessagePayload(MessageType.TRANSACTION_CONFIRMED,
                 decision), config.selfId);
         System.out.println(this + " sending " + m.serialize(new Gson()) + " to " + currentReqClientID.get());
         config.eventBus.publish(new SLSendEvent(m, currentReqClientID.get()));
-        blockChain.add(blockChainIdx.getAndIncrement(), val);
+        blockChain.add(blockChainIdx.getAndIncrement(), decision);
         try {
             this.lock.lock();
             if (this.inConsensus.getAndSet(false)) {

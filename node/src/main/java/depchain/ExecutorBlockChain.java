@@ -24,7 +24,7 @@ public class ExecutorBlockChain {
         SimpleWorld simpleWorld = new SimpleWorld();
 
         Address ownerAddress = Address.fromHexString("adminadminadminadminadminadminadminadmin");
-        simpleWorld.createAccount(ownerAddress,0, Wei.fromEth(100));
+        simpleWorld.createAccount(ownerAddress,0, Wei.fromEth(0));
         MutableAccount ownerAccount = (MutableAccount) simpleWorld.get(ownerAddress);
         System.out.println("Admin Account");
         System.out.println("  Address: "+ownerAccount.getAddress());

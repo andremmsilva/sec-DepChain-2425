@@ -5,6 +5,7 @@ import depchain.consensus.rw.RWDecideEvent;
 import depchain.consensus.rw.RWProposeEvent;
 import depchain.consensus.rw.ReadWrite;
 import depchain.consensus.utils.State;
+import depchain.network.message.Transaction;
 
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
@@ -20,8 +21,8 @@ import java.util.function.Consumer;
 
 public class ByzantineLeaderDrivenConsensus {
     private final ArrayList<ReadWrite> rwInstances = new ArrayList<>();
-    private final AtomicReference<String> val = new AtomicReference<>("");
-    private final AtomicReference<String> decision = new AtomicReference<>("");
+    private final AtomicReference<Transaction> val = new AtomicReference<>();
+    private final AtomicReference<Transaction> decision = new AtomicReference<>();
     private final AtomicBoolean aborted = new AtomicBoolean(false);
     private final AtomicBoolean proposed = new AtomicBoolean(false);
     private final AtomicInteger ets = new AtomicInteger(0);

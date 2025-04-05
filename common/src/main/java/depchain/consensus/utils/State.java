@@ -12,7 +12,7 @@ public class State {
     private Tuple last_round;
 
     public State() {
-        this.last_round = new Tuple(0, "");
+        this.last_round = new Tuple(0, null);
         this.writeset = Collections.synchronizedSet(new HashSet<>());
     }
 
