@@ -43,21 +43,21 @@ public class ContractExecutor {
 
         // Create owner account
         Address ownerAddress = Address.fromHexString(config.accountAddresses.get("10"));
-        simpleWorld.createAccount(ownerAddress, 0, Wei.fromEth(100));
+        simpleWorld.createAccount(ownerAddress, 0, Wei.of(1000000));
         MutableAccount ownerAccount = (MutableAccount) simpleWorld.get(ownerAddress);
-        accounts.put(ownerAddress.toHexString(), ownerAccount);
+        accounts.put(ownerAddress.toUnprefixedHexString(), ownerAccount);
 
         // Create non-owner account
         Address aliceAddress = Address.fromHexString(config.accountAddresses.get("11"));
-        simpleWorld.createAccount(aliceAddress, 0, Wei.fromEth(100));
-        MutableAccount aliceAccount = (MutableAccount) simpleWorld.get(ownerAddress);
-        accounts.put(aliceAddress.toHexString(), aliceAccount);
+        simpleWorld.createAccount(aliceAddress, 0, Wei.of(1000));
+        MutableAccount aliceAccount = (MutableAccount) simpleWorld.get(aliceAddress);
+        accounts.put(aliceAddress.toUnprefixedHexString(), aliceAccount);
 
         // Create contract account
         Address contractAddress = Address.fromHexString("1234567891234567891234567891234567891234");
-        simpleWorld.createAccount(contractAddress, 0, Wei.fromEth(0));
+        simpleWorld.createAccount(contractAddress, 0, Wei.of(1000));
         MutableAccount contractAccount = (MutableAccount) simpleWorld.get(contractAddress);
-        accounts.put(contractAddress.toHexString(), contractAccount);
+        accounts.put(contractAddress.toUnprefixedHexString(), contractAccount);
 
         this.executor = EVMExecutor.evm(EvmSpecVersion.CANCUN);
         executor.tracer(tracer);
@@ -95,7 +95,24 @@ public class ContractExecutor {
                 config.accountAddresses.get("11"), 100L);
 
         System.out.println(
-                "Output of 'balance():' " + instance.getISTCoinBalance("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
+                "Output of 'balance():' " + instance.getISTCoinBalance("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));      
+        System.out.println(
+                    "Output of 'owner dep balance():' " + 
+        instance.balanceDepCoin("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
+        System.out.println(
+                    "Output of 'alice dep balance():' " + 
+        instance.balanceDepCoin(config.accountAddresses.get("11")));
+  
+        System.out.println("Owner Sending 100 Dep Coin to alice");       
+        instance.transferDepCoin(config.accountAddresses.get("10"),
+        config.accountAddresses.get("11"), 100L);
+
+        System.out.println(
+            "Output of 'native balance() of owner:' " + 
+            instance.balanceDepCoin(config.accountAddresses.get("10")));
+        System.out.println(
+            "Output of 'native balance() of alice:' " + 
+            instance.balanceDepCoin(config.accountAddresses.get("11")));
     }
 
     public static String convertIntegerToHex256Bit(int number) {
@@ -178,5 +195,14 @@ public class ContractExecutor {
         sender.decrementBalance(Wei.of(amount));
         receiver.incrementBalance(Wei.of(amount));
         this.lock.unlock();
+    }
+
+    public String balanceDepCoin(String senderAddress){
+        this.lock.lock();
+        MutableAccount sender = this.accounts.get(senderAddress);
+        System.out.println(sender);
+        String result = sender.getBalance().toBigInteger().toString();
+        this.lock.unlock();
+        return result;
     }
 }
