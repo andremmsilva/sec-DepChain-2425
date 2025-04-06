@@ -9,7 +9,6 @@ import depchain.consensus.utils.State;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,12 +41,19 @@ public class ByzantineLeaderDrivenConsensus {
     private DepChainConfig config;
     private final Consumer<RWDecideEvent> onRWDecide = e -> {
         if (decision.get().isEmpty()) {
-            decision.set(e.arg);
+            this.decision.set(e.arg);
             this.config.eventBus.publish(new LDCDecideEvent(decision.get()));
             this.lock.lock();
             try {
-                this.rwInstances.getFirst().close();
-                this.rwInstances.clear();
+                this.aborted.set(false);
+                this.proposed.set(false);
+                this.ets.set(0);
+                this.val.set("");
+                this.decision.set("");
+                if(this.rwInstances.stream().findFirst().isPresent()) {
+                    this.rwInstances.getFirst().close();
+                }
+                this.proposedCond.signalAll();
             } finally {
                 this.lock.unlock();
             }
@@ -69,20 +75,14 @@ public class ByzantineLeaderDrivenConsensus {
 
 
     public void shutdown() {
-        config.eventBus.unregister(LDCProposeEvent.class, onLDCPropose);
-        config.eventBus.unregister(RWDecideEvent.class, onRWDecide);
-
-        this.running.set(false);
+        this.lock.lock();
         try {
-            this.lock.lock();
+            this.aborted.set(false);
+            this.proposed.set(false);
+            this.ets.set(0);
+            this.val.set("");
+            this.decision.set("");
             this.proposedCond.signalAll();
-            executor.shutdown();
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            throw new RuntimeException(e);
         } finally {
             this.lock.unlock();
         }
@@ -90,10 +90,10 @@ public class ByzantineLeaderDrivenConsensus {
     }
 
     public void watchProposal() {
-        while (this.running.get() && config.selfId.equals(DepChainConfig.LEADER) && !proposed.get()) {
+        while (this.running.get() && config.selfId.equals(DepChainConfig.LEADER)) {
             try {
                 this.lock.lock();
-                while (val.get().isEmpty()) {
+                while (val.get().isEmpty() || proposed.get()) {
                     proposedCond.await();
                 }
 
@@ -105,7 +105,7 @@ public class ByzantineLeaderDrivenConsensus {
 
                 System.out.println(this + " proposed " + val.get());
                 // ???????? Works dont remove for now
-                Thread.sleep(1000);
+                //Thread.sleep(1000);
                 config.eventBus.publish(new RWProposeEvent(val.get()));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

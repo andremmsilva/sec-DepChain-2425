@@ -142,18 +142,15 @@ public class ConditionalCollect {
     }
 
     public void close() {
-        this.running.set(false);
         this.lock.lock();
         try {
             this.messages.clear();
+            this.collected.set(false);
             this.newMessage.signalAll(); // Wake up the thread immediately
         } finally {
             this.lock.unlock();
         }
-        this.executor.shutdownNow(); // Forcefully terminate the thread pool
-
-        this.config.eventBus.unregister(CCInputEvent.class, onInput);
-        this.config.eventBus.unregister(APLDeliverEvent.class, onDeliver);
+        System.out.println(this + " shut down...");
     }
 
     @Override

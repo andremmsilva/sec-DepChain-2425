@@ -17,7 +17,6 @@ import depchain.network.message.MessageType;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -94,11 +93,13 @@ public class ReadWrite {
     };
 
     private final Consumer<APLDeliverEvent> onAPLDeliver = e -> {
-        if (e.arg.getPayload().getType().equals(MessageType.READ) && e.arg.getSenderId() == DepChainConfig.LEADER) {
+        if (e.arg.getPayload().getType().equals(MessageType.READ) &&
+                e.arg.getSenderId() == DepChainConfig.LEADER) {
             System.out.println(this + " got READ, sending CCInput " + this.epochState.serialize(new Gson()));
             this.config.eventBus.publish(
-                    new CCInputEvent(new Message(new MessagePayload(null, this.epochState.serialize(new Gson())),
-                            this.config.selfId)));
+                    new CCInputEvent(
+                            new Message(new MessagePayload(null, this.epochState.serialize(new Gson())),
+                                    this.config.selfId)));
         } else if (e.arg.getPayload().getType().equals(MessageType.WRITE)) {
             String val = e.arg.getPayload().getData();
 //            System.out.println(this + " got WRITE " + val + " from " + e.arg.getSenderId());
@@ -203,28 +204,16 @@ public class ReadWrite {
 
     public void close() {
         this.cc.close();
-        if (this.running.get()) {
-            this.config.eventBus.unregister(RWProposeEvent.class, onPropose);
-            this.config.eventBus.unregister(APLDeliverEvent.class, onAPLDeliver);
-            this.config.eventBus.unregister(CCCollectedEvent.class, onCCCollected);
-
-            this.running.set(false);
-            try {
-                this.lock.lock();
-                this.writtenCond.signal();
-                this.acceptedCond.signal();
-            } finally {
-                this.lock.unlock();
-            }
-            this.executor.shutdown();
-            try {
-                if (!this.executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    this.executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                this.executor.shutdownNow();
-                throw new RuntimeException(e);
-            }
+        try {
+            this.lock.lock();
+            this.written.clear();
+            this.accepted.clear();
+            this.setEpochState(new State());
+            this.ets = 0;
+            this.writtenCond.signal();
+            this.acceptedCond.signal();
+        } finally {
+            this.lock.unlock();
         }
         System.out.println(this + " shut down");
     }

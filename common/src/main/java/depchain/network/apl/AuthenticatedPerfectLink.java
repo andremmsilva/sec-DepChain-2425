@@ -42,7 +42,6 @@ public class AuthenticatedPerfectLink {
             if (conn.sharedKey != null) {
                 // Verify MAC - only deliver if valid
                 if (CryptoUtils.verifyMAC(m.getPayload().serialize(new Gson()), m.getMac(), conn.sharedKey)) {
-                    System.out.println(this + " received message " + m.getPayload().getType() + " from " + senderId);
                     config.eventBus.publish(new APLDeliverEvent(m));
                 } else {
                     System.out.println(this + " received invalid message " + m.getPayload().serialize(new Gson()) +

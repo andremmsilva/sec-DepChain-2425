@@ -48,7 +48,7 @@ public class DepChainMain {
         this.config = config;
         this.apl = new AuthenticatedPerfectLink(config);
         this.contractExecutor = new ContractExecutor(config);
-//        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
+        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
 
         this.transactionQueue = new TransactionQueue(BLOCK_SIZE);
         this.blockBuilderExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -101,7 +101,6 @@ public class DepChainMain {
 
     private void startConsensusForBatch(List<MessagePayload> batch) {
         inConsensus.set(true);
-        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
 
         // Serialize entire batch
         String batchData = serializeBatch(batch);
@@ -192,16 +191,9 @@ public class DepChainMain {
         try {
             this.lock.lock();
             if (this.inConsensus.get()) {
-                ByzantineLeaderDrivenConsensus oldConsensus = this.BLDConsensus;
-                this.BLDConsensus = null; // Clear reference first
-                oldConsensus.shutdown();
-
-                // Wait a bit longer for full cleanup
-                Thread.sleep(1000);
+                this.BLDConsensus.shutdown();
                 this.inConsensus.set(false);
             }
-        } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
         } finally {
             this.lock.unlock();
         }
