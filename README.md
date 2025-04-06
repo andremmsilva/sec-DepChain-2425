@@ -6,7 +6,7 @@ This repository implements the **DepChain**, a high-dependability blockchain sys
 
 ## ⚡ **Installation**
 
-This project requires **Java 21** and **Maven**. Install dependencies and compile:
+This project requires **Java 21** and **Maven**. Install dependencies, run all tests and compile:
 
 ```sh
 # Clone the repository
@@ -29,9 +29,9 @@ mvn test
 
 ## **✅ Test Suite Overview**
 
-The tests use JUnit5 and are written in the `src/test/java/depchain/**` directories.
+The tests use JUnit5 and are written in the `src/test/java/**` directories inside each module.
 
-An overview of the suite can be found [here](common/src/test/tests.md).
+An overview of the suite for the common package can be found [here](common/src/test/tests.md).
 
 ## 📜 **Code Overview**
 
