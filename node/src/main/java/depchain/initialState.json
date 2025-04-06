@@ -4,13 +4,13 @@
     "transactions": [],
     "state": {
       "adminadminadminadminadminadminadminadmin": {
-        "balance": "999800000"
+        "balance": "1000000000"
       },
       "alicealicealicealicealicealicealicealice": {
-        "balance": "100000"
+        "balance": "0"
       },
       "bobibobibobibobibobibobibobibobi": {
-        "balance": "100000"
+        "balance": "0"
       },
       "ISTCoinCISTCoinCISTCoinCISTCoinC": {
         "balance": 0,
