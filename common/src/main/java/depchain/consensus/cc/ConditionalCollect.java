@@ -102,6 +102,7 @@ public class ConditionalCollect {
         this.config.eventBus.register(APLDeliverEvent.class, onDeliver);
 
         this.executor.submit(this::watchCollectedMessages);
+        System.out.println(this + " started");
     }
 
     public void watchCollectedMessages() {
@@ -144,6 +145,7 @@ public class ConditionalCollect {
         this.running.set(false);
         this.lock.lock();
         try {
+            this.messages.clear();
             this.newMessage.signalAll(); // Wake up the thread immediately
         } finally {
             this.lock.unlock();

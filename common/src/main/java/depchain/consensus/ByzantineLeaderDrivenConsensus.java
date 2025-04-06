@@ -62,9 +62,9 @@ public class ByzantineLeaderDrivenConsensus {
         config.eventBus.register(LDCProposeEvent.class, onLDCPropose);
         config.eventBus.register(RWDecideEvent.class, onRWDecide);
 
-        System.out.println(this + " starting...");
 
         executor.submit(this::watchProposal);
+        System.out.println(this + " started...");
     }
 
 
@@ -104,6 +104,8 @@ public class ByzantineLeaderDrivenConsensus {
                 proposed.set(true);
 
                 System.out.println(this + " proposed " + val.get());
+                // ???????? Works dont remove for now
+                Thread.sleep(1000);
                 config.eventBus.publish(new RWProposeEvent(val.get()));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

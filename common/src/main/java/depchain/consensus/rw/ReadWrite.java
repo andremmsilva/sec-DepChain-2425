@@ -95,7 +95,7 @@ public class ReadWrite {
 
     private final Consumer<APLDeliverEvent> onAPLDeliver = e -> {
         if (e.arg.getPayload().getType().equals(MessageType.READ) && e.arg.getSenderId() == DepChainConfig.LEADER) {
-//            System.out.println(this + " got READ, sending CCInput " + this.epochState.serialize(new Gson()));
+            System.out.println(this + " got READ, sending CCInput " + this.epochState.serialize(new Gson()));
             this.config.eventBus.publish(
                     new CCInputEvent(new Message(new MessagePayload(null, this.epochState.serialize(new Gson())),
                             this.config.selfId)));
@@ -139,6 +139,7 @@ public class ReadWrite {
 
         this.executor.submit(this::watchWritten);
         this.executor.submit(this::watchAccepted);
+        System.out.println(this + " started...");
     }
 
     public void watchWritten() {

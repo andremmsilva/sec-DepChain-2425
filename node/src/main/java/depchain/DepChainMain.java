@@ -1,6 +1,6 @@
 package depchain;
 
-import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import depchain.config.DepChainConfig;
 import depchain.consensus.ByzantineLeaderDrivenConsensus;
 import depchain.consensus.LDCDecideEvent;
@@ -14,34 +14,45 @@ import depchain.network.message.Transaction;
 import depchain.network.sl.SLDeliverEvent;
 import depchain.network.sl.SLSendEvent;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class DepChainMain {
-    private final List<Object> blockChain = Collections.synchronizedList(new ArrayList<>());
+    private static final int BLOCK_SIZE = 10;
+    private static final int BLOCK_TIMEOUT_MS = 1000;
+
+    private final List<Block> blockChain = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger blockChainIdx = new AtomicInteger(0);
-    private final AtomicInteger currentReqClientID = new AtomicInteger(0);
     private final DepChainConfig config;
     private final AuthenticatedPerfectLink apl;
+    private final ContractExecutor contractExecutor;
+
+    private final TransactionQueue transactionQueue;
+    private final ScheduledExecutorService blockBuilderExecutor;
     private final AtomicBoolean inConsensus = new AtomicBoolean(false);
     private final Lock lock = new ReentrantLock();
-    private final Condition consensusFinished = lock.newCondition();
-    private ByzantineLeaderDrivenConsensus BLDConsensus;
+
     // Consumers for diverse events
+    private ByzantineLeaderDrivenConsensus BLDConsensus;
     private final Consumer<SLDeliverEvent> onSLDeliver = this::handleSLDeliver;
     private final Consumer<LDCDecideEvent> onLDCDecide = this::handleLDCDecide;
 
     public DepChainMain(DepChainConfig config) {
         this.config = config;
         this.apl = new AuthenticatedPerfectLink(config);
+        this.contractExecutor = new ContractExecutor(config);
 //        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
+
+        this.transactionQueue = new TransactionQueue(BLOCK_SIZE);
+        this.blockBuilderExecutor = Executors.newSingleThreadScheduledExecutor();
+        startBlockBuilder();
 
         config.eventBus.register(SLDeliverEvent.class, onSLDeliver);
         config.eventBus.register(LDCDecideEvent.class, onLDCDecide);
@@ -62,6 +73,46 @@ public class DepChainMain {
         }
     }
 
+    private void startBlockBuilder() {
+        blockBuilderExecutor.scheduleWithFixedDelay(() -> {
+            // Skip if no transactions or consensus active
+            if (transactionQueue.isEmpty() || inConsensus.get())
+                return;
+
+            List<MessagePayload> batch;
+
+            try {
+                lock.lock();
+                // Double-check after acquiring lock
+                if (inConsensus.get() || transactionQueue.isEmpty())
+                    return;
+
+                // Take either BLOCK_SIZE items or whatever is available after timeout
+                batch = transactionQueue.takeBatch();
+            } finally {
+                lock.unlock();
+            }
+
+            if (!batch.isEmpty()) {
+                startConsensusForBatch(batch);
+            }
+        }, BLOCK_TIMEOUT_MS, BLOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void startConsensusForBatch(List<MessagePayload> batch) {
+        inConsensus.set(true);
+        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
+
+        // Serialize entire batch
+        String batchData = serializeBatch(batch);
+        String proposal = batchData + "####" + blockChainIdx.get();
+
+        System.out.println("Proposing block " + blockChainIdx.get() +
+                " with " + batch.size() + " transactions");
+        config.eventBus.publish(new LDCProposeEvent(proposal));
+    }
+
+
     public void shutdown() {
         config.eventBus.unregister(SLDeliverEvent.class, onSLDeliver);
         config.eventBus.unregister(LDCDecideEvent.class, onLDCDecide);
@@ -73,7 +124,6 @@ public class DepChainMain {
             if (this.inConsensus.getAndSet(false)) {
                 this.BLDConsensus.shutdown();
             }
-            this.consensusFinished.signal();
         } finally {
             lock.unlock();
         }
@@ -88,11 +138,15 @@ public class DepChainMain {
             return;
         }
 
-        Transaction t = Transaction.fromJson(config.gson, m.getPayload().serialize(config.gson));
+        Transaction t = Transaction.fromJson(config.gson, m.getPayload().getData());
+        if (!t.getSenderAddress().equals(config.accountAddresses.get(String.valueOf(m.getSenderId())))) {
+            System.err.println("Received invalid sender address " + t.getSenderAddress());
+            return;
+        }
+
         switch (m.getPayload().getType()) {
             case BALANCE_REQ -> {
                 System.out.println("Received BALANCE_REQ " + m.serialize(config.gson));
-                // Re-Build the transaction object
             }
             case TRANSFER_REQ -> {
                 System.out.println("Received TRANSFER_REQ " + m.serialize(config.gson));
@@ -106,63 +160,93 @@ public class DepChainMain {
         }
 
         // wait for the current consensus to finish
-        while (this.inConsensus.getAndSet(true)) {
-            try {
-                lock.lock();
-                this.consensusFinished.await();
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                break;
-            } finally {
-                lock.unlock();
-            }
-        }
+        // while (this.inConsensus.getAndSet(true)) {
+        //     try {
+        //         lock.lock();
+        //         this.consensusFinished.await();
+        //     } catch (InterruptedException ex) {
+        //         Thread.currentThread().interrupt();
+        //         break;
+        //     } finally {
+        //         lock.unlock();
+        //     }
+        // }
 
-        // Create a new instance only after cleanup
-        this.BLDConsensus = new ByzantineLeaderDrivenConsensus(config);
-        String val = e.arg.getPayload().getData();
-        String proposal = val.concat("####").concat(String.valueOf(blockChainIdx.get()));
-        this.currentReqClientID.set(e.arg.getSenderId());
-        System.out.println(
-                this + " received APPEND message " + e.arg.serialize(new Gson()) + " from client " +
-                        currentReqClientID.get());
-
-        // Propose this value as the next index in the blockchain
-        System.out.println(this + " proposing " + val + " for idx " + blockChainIdx.get());
-        config.eventBus.publish(new LDCProposeEvent(proposal));
+        this.transactionQueue.add(m.getPayload());
+        System.out.println("Queued transaction from client " +
+                e.arg.getSenderId() +
+                " (Queue size: " + transactionQueue.size() + ")");
     }
 
     private void handleLDCDecide(LDCDecideEvent e) {
-        String decision = e.arg;
-        String val = e.arg.split("####")[0];
-        String idx = e.arg.split("####")[1];
+        String[] parts = e.arg.split("####");
+        String batchData = parts[0];
+        int blockIndex = Integer.parseInt(parts[1]);
 
-        System.out.println(this + " received LDCDecide " + val + " for idx " + idx);
+        List<MessagePayload> transactions = deserializeBatch(batchData);
 
-        // Reply to the client
-        Message m = new Message(new MessagePayload(MessageType.TRANSACTION_CONFIRMED,
-                decision), config.selfId);
-        System.out.println(this + " sending " + m.serialize(new Gson()) + " to " + currentReqClientID.get());
-        config.eventBus.publish(new SLSendEvent(m, currentReqClientID.get()));
-        blockChain.add(blockChainIdx.getAndIncrement(), val);
+        System.out.println(this + " received LDCDecide for idx " + blockIndex);
+        transactions.forEach(this::processDecidedTransaction);
+
+        blockChain.add(blockChainIdx.getAndIncrement(), new Block(transactions));
         try {
             this.lock.lock();
-            if (this.inConsensus.getAndSet(false)) {
+            if (this.inConsensus.get()) {
                 ByzantineLeaderDrivenConsensus oldConsensus = this.BLDConsensus;
                 this.BLDConsensus = null; // Clear reference first
                 oldConsensus.shutdown();
 
                 // Wait a bit longer for full cleanup
                 Thread.sleep(1000);
-
+                this.inConsensus.set(false);
             }
-            // Reset client ID after handling
-            this.consensusFinished.signal();
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
         } finally {
             this.lock.unlock();
         }
+    }
+
+    private void processDecidedTransaction(MessagePayload payload) {
+        Transaction t = Transaction.fromJson(config.gson, payload.getData());
+        Message m = new Message(new MessagePayload(MessageType.TRANSACTION_CONFIRMED,
+                ""), config.selfId);
+        switch (payload.getType()) {
+            case BALANCE_REQ -> {
+                Long istCoinBalance = contractExecutor.getISTCoinBalance(t.getSenderAddress());
+                m.getPayload().setData(istCoinBalance.toString());
+            }
+            case TRANSFERFROM_REQ, TRANSFER_REQ -> {
+                contractExecutor.transferISTCoin(t.getSenderAddress(), t.getRecieverAddress(), t.getAmount());
+            }
+            default -> {
+                return;
+            }
+        }
+        // Get the client ID from the sender address
+        String clientIdStr = config.accountAddresses.entrySet().stream()
+                .filter(e -> Objects.equals(e.getValue(), t.getSenderAddress()))
+                .map(Map.Entry::getKey)
+                .findFirst().orElse("");
+        try {
+            int clientId = Integer.parseInt(clientIdStr);
+            System.out.println(
+                    this + " sending " + m.serialize(config.gson) + " to " + clientId);
+            config.eventBus.publish(new SLSendEvent(m, clientId));
+        } catch (NumberFormatException e) {
+            System.err.println(
+                    "Got invalid clientId from decided transaction" + payload.serialize(config.gson));
+        }
+    }
+
+    private List<MessagePayload> deserializeBatch(String batchData) {
+        return config.gson.fromJson(batchData,
+                new TypeToken<List<MessagePayload>>() {
+                }.getType());
+    }
+
+    private String serializeBatch(List<MessagePayload> batch) {
+        return config.gson.toJson(new ArrayList<>(batch));
     }
 
     @Override

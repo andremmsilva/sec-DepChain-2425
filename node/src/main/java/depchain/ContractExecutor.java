@@ -55,7 +55,7 @@ public class ContractExecutor {
 
         // Create contract account
         Address contractAddress = Address.fromHexString("1234567891234567891234567891234567891234");
-        simpleWorld.createAccount(contractAddress, 0, Wei.of(1000));
+        simpleWorld.createAccount(contractAddress, 0, Wei.fromEth(0));
         MutableAccount contractAccount = (MutableAccount) simpleWorld.get(contractAddress);
         accounts.put(contractAddress.toUnprefixedHexString(), contractAccount);
 
@@ -95,23 +95,23 @@ public class ContractExecutor {
                 config.accountAddresses.get("11"), 100L);
 
         System.out.println(
-                "Output of 'balance():' " + instance.getISTCoinBalance("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));      
+                "Output of 'balance():' " + instance.getISTCoinBalance("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
         System.out.println(
-                    "Output of 'owner dep balance():' " + 
+                    "Output of 'owner dep balance():' " +
         instance.balanceDepCoin("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
         System.out.println(
-                    "Output of 'alice dep balance():' " + 
+                    "Output of 'alice dep balance():' " +
         instance.balanceDepCoin(config.accountAddresses.get("11")));
-  
-        System.out.println("Owner Sending 100 Dep Coin to alice");       
+
+        System.out.println("Owner Sending 100 Dep Coin to alice");
         instance.transferDepCoin(config.accountAddresses.get("10"),
         config.accountAddresses.get("11"), 100L);
 
         System.out.println(
-            "Output of 'native balance() of owner:' " + 
+            "Output of 'native balance() of owner:' " +
             instance.balanceDepCoin(config.accountAddresses.get("10")));
         System.out.println(
-            "Output of 'native balance() of alice:' " + 
+            "Output of 'native balance() of alice:' " +
             instance.balanceDepCoin(config.accountAddresses.get("11")));
     }
 
