@@ -17,7 +17,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class AuthenticatedPerfectLink {
+public class AuthenticatedPerfectLink implements IAuthenticatedPerfectLink{
     private final StubbornLink stubbornLink;
     private DepChainConfig config;
 

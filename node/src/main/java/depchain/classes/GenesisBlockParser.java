@@ -26,7 +26,7 @@ public class GenesisBlockParser {
 
             // Print parsed object
             System.out.println("Parsed Genesis Block:");
-            System.out.println("Block Hash: " + genesisBlock.getBlockHash());
+            System.out.println("Block Hash: " + genesisBlock.getHash());
             System.out.println("State: " + gson.toJson(genesisBlock.getState()));
 
         } catch (IOException e) {

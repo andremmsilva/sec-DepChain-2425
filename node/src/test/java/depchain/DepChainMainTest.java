@@ -10,10 +10,7 @@ import depchain.network.message.Transaction;
 import depchain.network.sl.SLDeliverEvent;
 import depchain.network.sl.SLSendEvent;
 import depchain.network.sl.StubbornLink;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -94,7 +91,6 @@ public class DepChainMainTest {
         DepChainConfig owner = new DepChainConfig(10, configs.getFirst().getBasePort(), "127.0.0.1");
         StubbornLink ownerSL = new StubbornLink(owner);
         DepChainConfig aliceClient = new DepChainConfig(11, configs.getFirst().getBasePort(), "127.0.0.1");
-        StubbornLink aliceSL = new StubbornLink(aliceClient);
         List<String> balancesReceived = Collections.synchronizedList(new ArrayList<>());
 
         Consumer<SLDeliverEvent> transferConsumer = e -> {
@@ -190,8 +186,9 @@ public class DepChainMainTest {
         boolean completed = latch.await(20, TimeUnit.SECONDS);
         assertTrue(completed, "Latch timed out waiting for APPEND_CONFIRMED");
 
-
         ownerClient.eventBus.unregister(SLDeliverEvent.class, consumer);
+        aliceClient.eventBus.unregister(SLDeliverEvent.class, consumer);
+        aliceSl.close();
         ownerSL.close();
     }
 }

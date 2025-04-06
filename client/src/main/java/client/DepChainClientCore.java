@@ -47,6 +47,8 @@ public class DepChainClientCore implements IDepChainClient {
                 if (success) {
                     successCount.incrementAndGet();
                     responses.put(res.getSenderId(), res.getPayload().getData());
+                } else {
+                    System.out.println("Error response from node: " + res.getPayload().getData());
                 }
             } finally {
                 lock.unlock();
@@ -86,9 +88,9 @@ public class DepChainClientCore implements IDepChainClient {
     }
 
     @Override
-    public long getBalance() {
+    public long getBalance(String addressOf, String currency) {
         String senderAddress = config.getSelfAccountAddress();
-        Transaction t = new Transaction(senderAddress, null);
+        Transaction t = new Transaction(senderAddress, addressOf, 0, currency);
         Message m = new Message(new MessagePayload(MessageType.BALANCE_REQ, t.serialize(config.gson)),
                 config.selfId);
         Map<Integer, String> responses = new HashMap<>();
@@ -116,6 +118,35 @@ public class DepChainClientCore implements IDepChainClient {
     public boolean transferFrom(String senderAddress, String receiverAddress, long amount, String currency) {
         Transaction t = new Transaction(senderAddress, receiverAddress, amount, currency);
         Message m = new Message(new MessagePayload(MessageType.TRANSFERFROM_REQ, t.serialize(config.gson)),
+                config.selfId);
+        Map<Integer, String> responses = new HashMap<>();
+        return operation(m, responses);
+    }
+
+    @Override
+    public boolean addToBlacklist(String targetAddress) {
+        Transaction t = new Transaction(config.getSelfAccountAddress(), targetAddress, 0, null);
+        Message m = new Message(
+                new MessagePayload(MessageType.ADD_TO_BLACKLIST_REQ, t.serialize(config.gson)),
+                config.selfId);
+        Map<Integer, String> responses = new HashMap<>();
+        return operation(m, responses);
+    }
+
+    @Override
+    public boolean removeFromBlacklist(String targetAddress) {
+        Transaction t = new Transaction(config.getSelfAccountAddress(), targetAddress, 0, null);
+        Message m = new Message(
+                new MessagePayload(MessageType.REMOVE_FROM_BLACKLIST_REQ, t.serialize(config.gson)),
+                config.selfId);
+        Map<Integer, String> responses = new HashMap<>();
+        return operation(m, responses);
+    }
+
+    @Override
+    public boolean isBlacklisted(String targetAddress) {
+        Transaction t = new Transaction(config.getSelfAccountAddress(), targetAddress, 0, null);
+        Message m = new Message(new MessagePayload(MessageType.IS_BLACKLISTED_REQ, t.serialize(config.gson)),
                 config.selfId);
         Map<Integer, String> responses = new HashMap<>();
         return operation(m, responses);
