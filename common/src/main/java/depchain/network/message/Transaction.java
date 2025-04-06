@@ -1,42 +1,46 @@
 package depchain.network.message;
 
 
+import com.google.gson.Gson;
+
 public class Transaction {
     private String senderAddress;         // Address of senderAddress
     private String receiverAddress;       // Address of receiver
     private long amount;         // Amount receiverAddress transfer
     private String currency;     //DepCoin or ISTcoin
-    private byte[] signature;    // Digital signature of the transaction
 
-    public Transaction( String senderAddress, String receiverAddress, long amount, String currency, byte[] signature) {
+    public Transaction(String senderAddress, String receiverAddress, long amount, String currency) {
         this.senderAddress = senderAddress;
         this.receiverAddress = receiverAddress;
         this.amount = amount;
         this.currency = currency;
-        this.signature = signature;
     }
-    public Transaction( String senderAddress, String currency, byte[] signature) {
+
+    public Transaction(String senderAddress, String currency) {
         this.senderAddress = senderAddress;
         this.receiverAddress = null;
-        this.amount=0;
+        this.amount = 0;
         this.currency = currency;
-        this.signature = signature;
     }
 
     // Required no-args construct for GSON
+    @SuppressWarnings("unused")
     public Transaction() {
         this.senderAddress = null;
         this.receiverAddress = null;
-        this.amount=0;
+        this.amount = 0;
         this.currency = null;
-        this.signature = null;
     }
 
-    public String getSender() {
+    public static Transaction fromJson(Gson gson, String json) {
+        return gson.fromJson(json, Transaction.class);
+    }
+
+    public String getSenderAddress() {
         return senderAddress;
     }
 
-    public void setSender(String senderAddress) {
+    public void setSenderAddress(String senderAddress) {
         this.senderAddress = senderAddress;
     }
 
@@ -56,20 +60,16 @@ public class Transaction {
         this.amount = amount;
     }
 
-    public String getCurrency(){
+    public String getCurrency() {
         return currency;
     }
 
-    public void setCurrency(String currency){
+    public void setCurrency(String currency) {
         this.currency = currency;
     }
 
-    public byte[] getSignature() {
-        return signature;
-    }
-
-    public void setSignature(byte[] signature) {
-        this.signature = signature;
+    public String serialize(Gson gson) {
+        return gson.toJson(this);
     }
 
     @Override
@@ -77,13 +77,12 @@ public class Transaction {
         return "Transaction{" +
                 "senderAddress='" + senderAddress + '\'' +
                 ", receiverAddress='" + receiverAddress + '\'' +
-                ", amount=" + amount+ '\'' +
-                ", currency=" + currency+ '\'' +
-                ", signature='" + signature.toString() + '\'' +
+                ", amount=" + amount + '\'' +
+                ", currency=" + currency + '\'' +
                 '}';
     }
 
     public boolean isEmpty() {
-        return this.senderAddress.equals(null)||this.receiverAddress.equals(null)||this.signature.equals(null);
+        return this.senderAddress == null || this.receiverAddress == null;
     }
 }

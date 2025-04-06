@@ -1,5 +1,6 @@
 package client;
 
+import com.google.gson.Gson;
 import depchain.config.DepChainConfig;
 import depchain.crypto.CryptoUtils;
 import depchain.network.message.Message;
@@ -11,11 +12,7 @@ import depchain.network.sl.SLSendEvent;
 import depchain.network.sl.StubbornLink;
 
 import java.security.PrivateKey;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -24,8 +21,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class DepChainClient {
+    private static final Gson gson = new Gson();
     private final DepChainConfig config;
-    private HashMap<PrivateKey,String> keysToAddresses = new HashMap<>();
+    private HashMap<PrivateKey, String> keysToAddresses = new HashMap<>();
 
     public DepChainClient(int id) {
         this.config = new DepChainConfig(id);
@@ -54,7 +52,8 @@ public class DepChainClient {
         DepChainClient client = new DepChainClient(clientId);
 
         final Scanner scanner = new Scanner(System.in);
-        System.out.println("Client with ID " + (clientId - 10) + " is running. Type '<transaction> <arguments>' to send a " +
+        System.out.println("Client with ID " + (clientId - 10) +
+                " is running. Type '<transaction> <arguments>' to send a " +
                 "transaction.");
         System.out.println("Type 'exit' to quit.");
 
@@ -72,34 +71,35 @@ public class DepChainClient {
 
             switch (tokens[0]) {
                 case "transfer" -> {
-                    if (tokens.length == 3) {
-                        String account = tokens[1];
-                        try{
-                            Integer.parseInt(tokens[2]);
-                        } catch (NumberFormatException e){
-                            System.err.println("Usage: transfer <recieverAddress> <C for ISTCoin, D for Depcoin>");
+                    if (tokens.length != 4) {
+                        System.err.println(
+                                "Usage: transfer <recieverAddress> <amount> <C for ISTCoin, D for Depcoin>");
+                    }
+                    try {
+                        Integer.parseInt(tokens[2]);
+                    } catch (NumberFormatException e) {
+                        System.err.println(
+                                "Usage: transfer <recieverAddress> <C for ISTCoin, D for Depcoin>");
+                    }
+                    if (tokens[3].equals("C") || tokens[3].equals("D")) {
+                        if (client.operation(tokens)) {
+                            System.out.println("Successful transaction");
+                        } else {
+                            System.out.println("Failed transaction");
                         }
-                        if(tokens[3].equals("C") || tokens[3].equals("D")){
-                            
-                            if (client.operation(tokens)) {
-                                System.out.println("Successful transaction");
-                            } else {
-                                System.out.println("Failed transaction");
-                            }
-                        }
-                    } else {
-                        System.err.println("Usage: transfer <recieverAddress> <amount> <C for ISTCoin, D for Depcoin>");
                     }
                 }
                 case "transferFrom" -> {
-                    if (tokens.length == 3) {
-                        try{
+                    if (tokens.length == 4) {
+                        try {
                             Integer.parseInt(tokens[2]);
-                        } catch (NumberFormatException e){
-                            System.err.println("Usage: transfer <recieverAddress> <C for ISTCoin, D for Depcoin>");
+                        } catch (NumberFormatException e) {
+                            System.err.println(
+                                    "Usage: transfer <recieverAddress> <amount> <C for ISTCoin, D for " +
+                                            "Depcoin>");
                         }
-                        if(tokens[3].equals("C") || tokens[3].equals("D")){
-                            
+                        if (tokens[3].equals("C") || tokens[3].equals("D")) {
+
                             if (client.operation(tokens)) {
                                 System.out.println("Successful transaction");
                             } else {
@@ -107,7 +107,9 @@ public class DepChainClient {
                             }
                         }
                     } else {
-                        System.err.println("Usage: transferFrom <recieverAddress> <amount> <C for ISTCoin, D for Depcoin>");
+                        System.err.println(
+                                "Usage: transferFrom <recieverAddress> <amount> <C for ISTCoin, D for " +
+                                        "Depcoin>");
                     }
                 }
                 case "balance" -> {
@@ -153,38 +155,35 @@ public class DepChainClient {
         // Register the response handler
         config.eventBus.register(SLDeliverEvent.class, onResponse);
         String transType = operation[0];
-        String data=null;
-        byte[] signature = null;
         MessagePayload payload;
-        if(transType.equals("balance")){
-            data = operation[0]+"|"+operation[1];
-            signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.BALANCE_REQ, new Transaction("myaddress", operation[1], signature));
-
-        } else if(transType.equals("transfer")){
-            data = operation[0]+"|"+operation[1]+"|"+operation[2]+"|"+operation[3];
-            signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.TRANSFER_REQ, new Transaction("myaddress", operation[1], Long.parseLong(operation[2]), operation[3], signature));
-
-        } else if(transType.equals("transferFrom")){
-            data = operation[0]+"|"+operation[1]+"|"+operation[2]+"|"+operation[3];
-            signature = CryptoUtils.signMessage(data,config.getSelfPrivateKey());
-            payload = new MessagePayload(MessageType.TRANSFERFROM_REQ, new Transaction(operation[1],"myaddress", Long.parseLong(operation[2]), operation[3], signature));
-
-        } else{
-             return false;
+        switch (transType) {
+            case "balance" -> payload = new MessagePayload(MessageType.BALANCE_REQ,
+                    new Transaction(config.getSelfAccountAddress(), null).serialize(gson));
+            case "transfer" -> payload = new MessagePayload(
+                    MessageType.TRANSFER_REQ,
+                    new Transaction(config.getSelfAccountAddress(), operation[1],
+                            Long.parseLong(operation[2]), operation[3]).serialize(gson));
+            case "transferFrom" -> payload = new MessagePayload(MessageType.TRANSFERFROM_REQ,
+                    new Transaction(operation[1], config.getSelfAccountAddress(),
+                            Long.parseLong(operation[2]), operation[3]).serialize(gson));
+            default -> {
+                return false;
+            }
         }
 
-        Message message = new Message(payload, config.selfId, signature);
+        Message message = new Message(payload, config.selfId);
+        message.setSignature(
+                CryptoUtils.signMessage(message.getPayload().serialize(gson), config.getSelfPrivateKey()));
         // Send the actual message to all nodes
         for (int i = 0; i < DepChainConfig.PROCESSES; i++) {
-            config.eventBus.publish(new SLSendEvent(message,i));
+            config.eventBus.publish(new SLSendEvent(message, i));
         }
 
         try {
             lock.lock();
             // If we get all replies or F + 1 positive replies, don't wait longer
-            while (replyCount.get() < DepChainConfig.PROCESSES || successes.size() < DepChainConfig.FAIL_BOUND + 1) {
+            while (replyCount.get() < DepChainConfig.PROCESSES ||
+                    successes.size() < DepChainConfig.FAIL_BOUND + 1) {
                 // Block until a message arrives
                 if (!newMessageCond.await(10, TimeUnit.SECONDS)) {
                     // 10 seconds have passed, giving up on obtaining F + 1 positive replies

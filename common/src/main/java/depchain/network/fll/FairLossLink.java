@@ -63,7 +63,7 @@ public class FairLossLink {
     }
 
     public void sendMessage(Message m, int targetId) throws Exception {
-        String destAddress = config.ADDRESS;
+        String destAddress = config.IP;
         int destPort = config.basePort + targetId;
         byte[] data = m.serialize(new Gson()).getBytes();
         DatagramPacket packet = new DatagramPacket(data, data.length,

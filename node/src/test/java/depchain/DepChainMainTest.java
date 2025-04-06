@@ -56,7 +56,7 @@ public class DepChainMainTest {
         StubbornLink clientSl = new StubbornLink(client);
         Consumer<SLDeliverEvent> consumer = e -> {
             Message m = e.arg;
-            if (m.getPayload().getType() == MessageType.APPEND_CONFIRMED) {
+            if (m.getPayload().getType() == MessageType.TRANSACTION_CONFIRMED) {
                 System.out.println("Got append confirmed " + m.getPayload().getData());
                 latch.countDown();
             }
@@ -87,7 +87,7 @@ public class DepChainMainTest {
         Consumer<SLDeliverEvent> consumer = e -> {
             Message m = e.arg;
             System.out.println("Got message from " + m.getSenderId() + " " + m.serialize(new Gson()));
-            if (m.getPayload().getType() == MessageType.APPEND_CONFIRMED) {
+            if (m.getPayload().getType() == MessageType.TRANSACTION_CONFIRMED) {
                 latch.countDown();
                 // Verify first and second messages
                 // You might need to store received messages and assert separately

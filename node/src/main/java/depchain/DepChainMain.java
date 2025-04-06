@@ -5,10 +5,12 @@ import depchain.config.DepChainConfig;
 import depchain.consensus.ByzantineLeaderDrivenConsensus;
 import depchain.consensus.LDCDecideEvent;
 import depchain.consensus.LDCProposeEvent;
+import depchain.crypto.CryptoUtils;
 import depchain.network.apl.AuthenticatedPerfectLink;
 import depchain.network.message.Message;
 import depchain.network.message.MessagePayload;
 import depchain.network.message.MessageType;
+import depchain.network.message.Transaction;
 import depchain.network.sl.SLDeliverEvent;
 import depchain.network.sl.SLSendEvent;
 
@@ -31,9 +33,9 @@ public class DepChainMain {
     private final AtomicBoolean inConsensus = new AtomicBoolean(false);
     private final Lock lock = new ReentrantLock();
     private final Condition consensusFinished = lock.newCondition();
+    private ByzantineLeaderDrivenConsensus BLDConsensus;
     // Consumers for diverse events
     private final Consumer<SLDeliverEvent> onSLDeliver = this::handleSLDeliver;
-    private ByzantineLeaderDrivenConsensus BLDConsensus;
     private final Consumer<LDCDecideEvent> onLDCDecide = this::handleLDCDecide;
 
     public DepChainMain(DepChainConfig config) {
@@ -79,8 +81,28 @@ public class DepChainMain {
 
     private void handleSLDeliver(SLDeliverEvent e) {
         // Not a client message - ignore
-        if (!e.arg.getPayload().getType().equals(MessageType.APPEND_REQ)) {
+        Message m = e.arg;
+        if (!CryptoUtils.verifySignature(m.getPayload().serialize(config.gson), m.getSignature(),
+                config.getPublicKey(m.getSenderId()))) {
+            System.err.println("Received invalid signature in client message " + m.serialize(config.gson));
             return;
+        }
+
+        Transaction t = Transaction.fromJson(config.gson, m.getPayload().serialize(config.gson));
+        switch (m.getPayload().getType()) {
+            case BALANCE_REQ -> {
+                System.out.println("Received BALANCE_REQ " + m.serialize(config.gson));
+                // Re-Build the transaction object
+            }
+            case TRANSFER_REQ -> {
+                System.out.println("Received TRANSFER_REQ " + m.serialize(config.gson));
+            }
+            case TRANSFERFROM_REQ -> {
+                System.out.println("Received TRANSFERFROM_REQ " + m.serialize(config.gson));
+            }
+            default -> {
+                return;
+            }
         }
 
         // wait for the current consensus to finish
@@ -101,7 +123,9 @@ public class DepChainMain {
         String val = e.arg.getPayload().getData();
         String proposal = val.concat("####").concat(String.valueOf(blockChainIdx.get()));
         this.currentReqClientID.set(e.arg.getSenderId());
-        System.out.println(this + " received APPEND message " + e.arg.serialize(new Gson()) + " from client " + currentReqClientID.get());
+        System.out.println(
+                this + " received APPEND message " + e.arg.serialize(new Gson()) + " from client " +
+                        currentReqClientID.get());
 
         // Propose this value as the next index in the blockchain
         System.out.println(this + " proposing " + val + " for idx " + blockChainIdx.get());
@@ -116,7 +140,7 @@ public class DepChainMain {
         System.out.println(this + " received LDCDecide " + val + " for idx " + idx);
 
         // Reply to the client
-        Message m = new Message(new MessagePayload(MessageType.APPEND_CONFIRMED,
+        Message m = new Message(new MessagePayload(MessageType.TRANSACTION_CONFIRMED,
                 decision), config.selfId);
         System.out.println(this + " sending " + m.serialize(new Gson()) + " to " + currentReqClientID.get());
         config.eventBus.publish(new SLSendEvent(m, currentReqClientID.get()));
