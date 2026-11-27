@@ -1,76 +1,36 @@
-# 🚀 DepChain
+# DepChain
 
-This repository implements the **DepChain**, a high-dependability blockchain system.
+A small permissioned blockchain that keeps working when some of its nodes lie. Built in Java for the Highly Dependable Systems course at Instituto Superior Técnico (MSc, 2024/25), in a team of three.
 
----
+Four nodes agree on each block with a Byzantine fault-tolerant consensus protocol, so the chain stays consistent even if one of them crashes, goes silent or sends conflicting messages on purpose. Transactions in each block run against smart contracts on the Hyperledger Besu EVM. The demo contract is an ERC-20 token with a blacklist.
 
-## ⚡ **Installation**
+## How it works
 
-This project requires **Java 21** and **Maven**. Install dependencies, run all tests and compile:
+The code is layered, each layer built only on the one below it:
 
-```sh
-# Clone the repository
-git clone https://github.com/andremmsilva/sec-DepChain-2425.git
-cd sec-DepChain-2425
+- **Links.** UDP fair-loss links, then stubborn links that retransmit until acknowledged and drop duplicates, then authenticated perfect links that agree on a shared key through an RSA-signed handshake and reject any message whose MAC does not check out.
+- **Consensus.** Byzantine read/write epoch consensus with a conditional-collect step: the leader gathers signed state from every node, and a value is only decided once a Byzantine quorum agrees it is safe.
+- **Execution.** Each decided block is run through the Besu EVM against the `ISTCoin` (ERC-20) and `Blacklist` contracts in [`node/contracts`](node/contracts). The genesis block sets the initial accounts and balances, in the native DepCoin and in IST Coin.
+- **Client.** A command-line client that signs each transaction and only accepts the result once f+1 nodes confirm it, so a single lying node cannot fool it.
 
-# Build the project
-mvn clean install
-```
+## Tests
 
----
-
-## 🧪 **Running Tests**
-
-To verify that each layer functions correctly, run:
+The JUnit 5 suite tests each layer on its own, and tests consensus with a silent node and with a Byzantine node in the network. GitHub Actions runs it on every push. [`test.sh`](test.sh) runs the suite repeatedly to catch timing-dependent failures.
 
 ```sh
-mvn test
+mvn clean install    # build and run the tests (Java 21, Maven)
+./test.sh 20         # run the suite 20 times
 ```
 
-## **✅ Test Suite Overview**
+## Running it
 
-The tests use JUnit5 and are written in the `src/test/java/**` directories inside each module.
+Start the four nodes (ids 0 to 3) in separate terminals, then a client (ids 10 to 12):
 
-An overview of the suite for the common package can be found [here](common/src/test/tests.md).
+```sh
+java -jar node/target/node-1.0-SNAPSHOT.jar 0
+java -jar client/target/client-1.0-SNAPSHOT.jar 10
+```
 
-## 📜 **Code Overview**
+The client accepts `balance`, `transfer`, `transferfrom`, `addblacklist`, `removeblacklist` and `isblacklisted`.
 
-The project's source code is contained within the `src/main/java/depchain/**` directories.
-
-Each subdirectory corresponds to one of the packages listed below:
-
-### **📂 `depchain.config` - Node Management and Global Configurations**
-
-### **📂 `depchain.events` - Event Management**
-
-#### 🔹 `Event.java`
-
-> Abstract Class describing "something happening". **Contains an argument (`arg`)of any type.**
-
-#### 🔹 `EventBus.java`
-
-> Manages the registration and unregistration of event consumers. Additionally, manages the delivery of events to these consumers asynchronously.
-
-### **📂 `depchain.network` - Networking Stack**
-
-#### 🔹 `Message.java`
-
-> Represents a message exchanged across the network. **Contains senderId, payload and possibly a MAC and DS**.
-
-#### 🔹 `FairLossLink.java`
-
-> Basic UDP communication. **Messages can be lost, duplicated, or reordered**.
-
-#### 🔹 `StubbornLink.java`
-
-> Ensures **eventual delivery** by **retransmitting messages**.
-
-#### 🔹 `AuthenticatedPerfectLink.java`
-
-> Adds **cryptographic authentication** to prevent **spoofing and duplication**.
-
-### **📂 `depchain.crypto` - Cryptography**
-
-#### 🔹 `CryptoUtils.java`
-
-> Provides **RSA digital signatures and MACs** for authentication, as well as key generation.
+The keys in `common/src/main/resources/keys` are test keys generated for this project. They are not used anywhere else.
